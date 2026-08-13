@@ -9,7 +9,7 @@ comfyui:
   default_poll_interval: 3
 api:
   jimeng:
-    api_key: ${JIMENG_API_KEY}
+    api_key: your-jimeng-api-key
     key_name: Custom
 seedance:
   model_version: doubao-seedance-2-0-fast
@@ -30,7 +30,7 @@ ffmpeg:
   crf: 13
   pix_fmt: yuv420p
   profile: main
-  font: C:/Windows/Fonts/msyh.ttc
+  font_family: Microsoft YaHei
   font_size: 48
   codec: libx264
   audio_codec: aac
@@ -49,6 +49,8 @@ merge:
   transition: fade
   transition_duration: 0.5
   filename_prefix: segment_{id}
+  tts_mode: whole
+  break_between_shots_ms: 600
   silent_sample_rate: 44100
   audio_threshold: 1000
   srt_threshold: 10
@@ -60,30 +62,6 @@ agent:
   style: cinematic lighting, professional corporate atmosphere, modern clean design
   default_seed: 42
   filename_prefix: shot_{id}
-  keyword_map:
-    科技: futuristic technology
-    背景: background
-    招聘: job recruitment
-    课程: online course platform
-    封面: cover page
-    实操: hands-on practice interface
-    对比: split screen comparison
-    分屏: split screen showing four panels
-    动画: smooth animation
-    模块: module card elements
-    技能: skill architecture visualization
-    体系: system framework
-    报名: enrollment landing page
-    链接: clickable link
-    二维码: QR code
-    入口: call-to-action button
-    展示: display showcase
-    数据: data analytics
-    分析: analysis dashboard
-    知识库: knowledge base
-    助手: AI assistant
-    界面: user interface
-    操作: interactive operation
   default_duration: 5
   max_retries: 2
   duration_range:
@@ -96,9 +74,9 @@ input:
   default_duration: 5
   default_asset_type: ai_generated
 llm:
-  api_url: ${LLM_API_URL}
-  api_key: ${LLM_API_KEY}
-  model: ${LLM_MODEL}
+  api_url: your-llm-api-url
+  api_key: your-llm-api-key
+  model: mimo-v2.5
   max_tokens: 1000
   temperature: 0.7
 task:

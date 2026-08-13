@@ -2,11 +2,7 @@
 视频批量生产流水线 — 主入口（异步版）
 输入→LangGraph Agent→合并
 """
-import argparse
-import asyncio
-import os
-import re
-import sys
+import argparse, asyncio, os, sys
 import yaml
 from datetime import datetime
 from pathlib import Path
@@ -24,38 +20,10 @@ from pipeline.messages import Msg
 log = get_logger("cli")
 
 
-def load_dotenv(env_path: str = ".env"):
-    """加载 .env 文件到 os.environ"""
-    p = Path(env_path)
-    if not p.exists():
-        return
-    with open(p, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "=" in line:
-                key, val = line.split("=", 1)
-                os.environ.setdefault(key.strip(), val.strip())
-
-
-def _resolve_env_vars(obj):
-    if isinstance(obj, str):
-        def repl(m):
-            return os.environ.get(m.group(1), m.group(0))
-        return re.sub(r'\$\{(\w+)\}', repl, obj)
-    elif isinstance(obj, dict):
-        return {k: _resolve_env_vars(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [_resolve_env_vars(i) for i in obj]
-    return obj
-
 
 def load_config(path: str = "config.yaml") -> dict:
-    load_dotenv()
     with open(path, encoding="utf-8") as f:
-        raw = yaml.safe_load(f)
-    return _resolve_env_vars(raw)
+        return yaml.safe_load(f)
 
 
 def ensure_dirs(config: dict):

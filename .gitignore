@@ -1,6 +1,10 @@
-.env
+config.yaml
+input/
 output/
 __pycache__/
 *.pyc
+*.bak*
 .vscode/
-.idea/
+.idea/input/tmp_gen_*.csv
+.opencode/
+.pytest_cache/
