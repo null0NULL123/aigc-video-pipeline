@@ -1,0 +1,46 @@
+{
+  "id": "ffmpeg_text_overlay",
+  "name": "FFmpeg 文字叠加",
+  "description": "在视频/图片上叠加中文字幕、标注文字，支持多段渐显动画",
+  "category": "text_overlay",
+  "match_rules": {
+    "asset_type": [
+      "image",
+      "local",
+      "ai_generated"
+    ],
+    "keywords": [
+      "字幕",
+      "标注",
+      "文字",
+      "标题",
+      "模块",
+      "列表"
+    ]
+  },
+  "usage": {
+    "required_params": [
+      "input_media",
+      "texts",
+      "duration"
+    ],
+    "optional_params": [
+      "font",
+      "fontsize",
+      "fontcolor",
+      "position",
+      "fade_duration"
+    ],
+    "note": "input_media: 视频或图片路径; texts: [{text, time_start, time_end, x, y}]; duration: 总时长"
+  },
+  "workflow_type": "ffmpeg",
+  "command_template": "ffmpeg -y -loop 1 -i {input} -filter_complex {filter} -t {duration} -pix_fmt {{ffmpeg.pix_fmt}} -c:v libx264 -crf {{ffmpeg.crf}} {output}",
+  "injectable_params": [
+    "input",
+    "texts",
+    "duration",
+    "output",
+    "fontsize",
+    "font"
+  ]
+}

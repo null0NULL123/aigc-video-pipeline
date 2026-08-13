@@ -1,0 +1,112 @@
+logging:
+  level: INFO
+  dir: output/logs
+comfyui:
+  host: http://127.0.0.1:8188
+  timeout: 600
+  poll_interval: 5
+  default_timeout: 300
+  default_poll_interval: 3
+api:
+  jimeng:
+    api_key: ${JIMENG_API_KEY}
+    key_name: Custom
+seedance:
+  model_version: doubao-seedance-2-0-fast
+  resolution: 720p
+  aspect_ratio: adaptive
+  generate_audio: true
+  enable_random_seed: true
+  default_seed: 0
+  default_duration: 5
+video:
+  fps: 16
+  width: 768
+  height: 1344
+  codec: libx264
+  crf: 13
+  pix_fmt: yuv420p
+ffmpeg:
+  crf: 13
+  pix_fmt: yuv420p
+  profile: main
+  font: C:/Windows/Fonts/msyh.ttc
+  font_size: 48
+  codec: libx264
+  audio_codec: aac
+  audio_bitrate: 192k
+tts:
+  voice: zh-CN-XiaoxiaoNeural
+  rate: +0%
+output:
+  base_dir: output
+  shots_dir: output/shots
+  audio_dir: output/audio
+  subs_dir: output/subs
+  merged_dir: output/merged
+  final_dir: output/final
+merge:
+  transition: fade
+  transition_duration: 0.5
+  filename_prefix: segment_{id}
+  silent_sample_rate: 44100
+  audio_threshold: 1000
+  srt_threshold: 10
+  srt_default_duration: 5
+  output_filename: final_video.mp4
+  concat_filename: _concat_list.txt
+agent:
+  camera: smooth slow camera push-in
+  style: cinematic lighting, professional corporate atmosphere, modern clean design
+  default_seed: 42
+  filename_prefix: shot_{id}
+  keyword_map:
+    科技: futuristic technology
+    背景: background
+    招聘: job recruitment
+    课程: online course platform
+    封面: cover page
+    实操: hands-on practice interface
+    对比: split screen comparison
+    分屏: split screen showing four panels
+    动画: smooth animation
+    模块: module card elements
+    技能: skill architecture visualization
+    体系: system framework
+    报名: enrollment landing page
+    链接: clickable link
+    二维码: QR code
+    入口: call-to-action button
+    展示: display showcase
+    数据: data analytics
+    分析: analysis dashboard
+    知识库: knowledge base
+    助手: AI assistant
+    界面: user interface
+    操作: interactive operation
+  default_duration: 5
+  max_retries: 2
+  duration_range:
+  - 2
+  - 20
+  prompt_min_length: 10
+  prompt_short_duration: 4
+  prompt_long_duration: 8
+input:
+  default_duration: 5
+  default_asset_type: ai_generated
+llm:
+  api_url: ${LLM_API_URL}
+  api_key: ${LLM_API_KEY}
+  model: ${LLM_MODEL}
+  max_tokens: 1000
+  temperature: 0.7
+task:
+  batch_prefix: batch
+  shot_prefix: shot
+  id_format: '{batch_id}_{shot_prefix}_{shot_id:03d}'
+  output_structure:
+    shots: output/{batch_id}/shots
+    audio: output/{batch_id}/audio
+    subs: output/{batch_id}/subs
+    final: output/{batch_id}/final

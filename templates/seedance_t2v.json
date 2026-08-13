@@ -1,0 +1,86 @@
+{
+  "id": "seedance_t2v",
+  "name": "Seedance T2V (文字→视频)",
+  "description": "无图片，纯文字描述生成视频",
+  "category": "t2v",
+  "match_rules": {
+    "asset_type": [
+      "ai_generated",
+      "none",
+      ""
+    ],
+    "keywords": []
+  },
+  "usage": {
+    "required_params": [
+      "image",
+      "prompt",
+      "duration"
+    ],
+    "optional_params": [
+      "seed",
+      "resolution",
+      "aspect_ratio"
+    ],
+    "note": "image: 首帧图片路径; prompt: 英文描述; duration: 秒数"
+  },
+  "workflow": {
+    "121": {
+      "class_type": "JimengAPIClient",
+      "inputs": {
+        "new_api_key": "{{api.jimeng.api_key}}",
+        "new_key_name": "",
+        "key_name": "{{api.jimeng.key_name}}"
+      }
+    },
+    "123": {
+      "class_type": "JimengSeedance2",
+      "inputs": {
+        "client": [
+          "121",
+          0
+        ],
+        "model_version": "{{seedance.model_version}}",
+        "prompt": "prompt placeholder",
+        "enable_random_seed": "{{seedance.enable_random_seed}}",
+        "seed": "{{seedance.default_seed}}",
+        "resolution": "{{seedance.resolution}}",
+        "aspect_ratio": "{{seedance.aspect_ratio}}",
+        "auto_duration": false,
+        "duration": 5,
+        "generate_audio": "{{seedance.generate_audio}}",
+        "enable_web_search": false,
+        "generation_count": 1,
+        "filename_prefix": "seedance_output",
+        "save_last_frame_batch": false,
+        "non_blocking": false,
+        "ref_images": {},
+        "ref_videos": {},
+        "ref_audios": {},
+        "last_frame_image": null
+      }
+    },
+    "92": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "123",
+          0
+        ],
+        "filename_prefix": "shot_output",
+        "format": "mp4",
+        "codec": "auto"
+      }
+    }
+  },
+  "injectable_nodes": {
+    "123": {
+      "params": {
+        "prompt": "prompt",
+        "duration": "duration",
+        "seed": "seed",
+        "filename_prefix": "filename_prefix"
+      }
+    }
+  }
+}
