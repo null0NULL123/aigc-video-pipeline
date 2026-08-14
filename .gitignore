@@ -8,3 +8,5 @@ __pycache__/
 .idea/input/tmp_gen_*.csv
 .opencode/
 .pytest_cache/
+.env
+

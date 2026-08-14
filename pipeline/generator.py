@@ -1,19 +1,17 @@
 """
-LangGraph Agent: 视频生产流水线
-8 节点图: analyze → select → optimize → validate → submit → wait → review → END
+普通 async 编排：单镜头生成 + 批量并发
+替代原 LangGraph 8 节点图（analyze→select→optimize→validate→submit→wait→review）
+v1 起移除 langgraph 依赖
 """
 import asyncio
 from pathlib import Path
 
-from langgraph.graph import StateGraph, END
-
 from .registry import TemplateRegistry
 from .comfyui import ComfyUIClient
 from .log import get_logger
-from .llm import call_llm
 from .messages import Msg
 
-log = get_logger("langgraph")
+log = get_logger("generator")
 
 # 运行时从 config 加载
 CAMERA = ""
@@ -30,15 +28,14 @@ def _ensure_agent_config(state: dict):
         STYLE = agent_cfg.get("style", "cinematic lighting, professional corporate atmosphere, modern clean design")
 
 
-def analyze_node(state: dict) -> dict:
-    _ensure_agent_config(state)
+def _analyze(state: dict) -> dict:
     sid = state.get("id", "?")
     desc = state.get("scene_desc", "")
     log.info(f"镜号 {sid}: {desc[:40]}")
-    return {**state}
+    return state
 
 
-def select_node(state: dict) -> dict:
+def _select(state: dict) -> dict:
     sid = state.get("id", "?")
     registry = state.get("_ctx", {}).get("registry")
     if not registry:
@@ -56,7 +53,6 @@ def select_node(state: dict) -> dict:
 
     wid = registry.find_best(
         asset_type=asset_type,
-
         scene_desc=state.get("scene_desc", ""),
     )
     wdata = registry.get(wid)
@@ -66,29 +62,30 @@ def select_node(state: dict) -> dict:
             "asset_type": asset_type}
 
 
-def optimize_node(state: dict) -> dict:
-    sid = state.get("id", "?")
+def _optimize(state: dict) -> dict:
+    config = state.get("config", {})
     elements = state.get("key_elements", [])
-    duration = state.get("duration", state.get("config", {}).get("agent", {}).get("default_duration", 5))
+    duration = state.get("duration", config.get("agent", {}).get("default_duration", 5))
     desc_en = ", ".join(elements[:6]) if elements else "professional technology scene"
     prompt = f"{desc_en}. {CAMERA}, {STYLE}."
-    if duration > state.get("config", {}).get("agent", {}).get("prompt_long_duration", 8):
+    if duration > config.get("agent", {}).get("prompt_long_duration", 8):
         prompt = prompt.rstrip(".") + ", slow paced, extended sequence."
-    elif duration < state.get("config", {}).get("agent", {}).get("prompt_short_duration", 4):
+    elif duration < config.get("agent", {}).get("prompt_short_duration", 4):
         prompt = prompt.rstrip(".") + ", quick dynamic, energetic pace."
     log.info(Msg.LG_OPTIMIZE.format(prompt=prompt[:55]))
     return {**state, "optimized_prompt": prompt}
 
 
-def validate_node(state: dict) -> dict:
+def _validate(state: dict) -> dict:
     sid = state.get("id", "?")
+    config = state.get("config", {})
     issues = []
     dur = state.get("duration", 0)
-    dur_range = state.get("config", {}).get("agent", {}).get("duration_range", [2, 20])
+    dur_range = config.get("agent", {}).get("duration_range", [2, 20])
     if dur < dur_range[0] or dur > dur_range[1]:
         issues.append(f"时长 {dur}s 超出范围 {dur_range}")
     prompt = state.get("optimized_prompt", "")
-    if len(prompt) < state.get("config", {}).get("agent", {}).get("prompt_min_length", 10):
+    if len(prompt) < config.get("agent", {}).get("prompt_min_length", 10):
         issues.append("Prompt 过短")
     if not state.get("workflow_data"):
         issues.append("未选择模板")
@@ -101,7 +98,7 @@ def validate_node(state: dict) -> dict:
     return {**state, "status": "validated", "error_message": ""}
 
 
-async def submit_node(state: dict) -> dict:
+async def _submit(state: dict) -> dict:
     sid = state.get("id", "?")
     ctx = state.get("_ctx") or {}
     client = ctx.get("client")
@@ -116,7 +113,8 @@ async def submit_node(state: dict) -> dict:
     import json as _json
     wf = _json.loads(_json.dumps(wf))
     optimized = state.get("optimized_prompt", "")
-    duration = state.get("duration", state.get("config", {}).get("agent", {}).get("default_duration", 5))
+    config = state.get("config", {})
+    duration = state.get("duration", config.get("agent", {}).get("default_duration", 5))
     for nid, info in wf.items():
         if not info:
             continue
@@ -124,12 +122,12 @@ async def submit_node(state: dict) -> dict:
         if "JimengSeedance" in ct:
             info["inputs"]["prompt"] = optimized
             info["inputs"]["duration"] = duration
-            info["inputs"]["seed"] = state.get("config", {}).get("agent", {}).get("default_seed", 42)
-            batch_id = state.get("config", {}).get("_batch_id", "")
+            info["inputs"]["seed"] = config.get("agent", {}).get("default_seed", 42)
+            batch_id = config.get("_batch_id", "")
             prefix = f"{batch_id}_shot_{sid}" if batch_id else f"shot_{sid}"
             info["inputs"]["filename_prefix"] = prefix
         if ct == "SaveVideo":
-            batch_id = state.get("config", {}).get("_batch_id", "")
+            batch_id = config.get("_batch_id", "")
             prefix = f"{batch_id}_shot_{sid}" if batch_id else f"shot_{sid}"
             info["inputs"]["filename_prefix"] = prefix
     asset_path = state.get("asset_path", "")
@@ -153,7 +151,7 @@ async def submit_node(state: dict) -> dict:
         return {**state, "status": "failed", "error_message": f"提交失败: {e}"}
 
 
-async def wait_node(state: dict) -> dict:
+async def _wait(state: dict) -> dict:
     sid = state.get("id", "?")
     ctx = state.get("_ctx") or {}
     client = ctx.get("client")
@@ -163,7 +161,7 @@ async def wait_node(state: dict) -> dict:
     try:
         history = await client.wait_for_completion(pid)
         config = state.get("config", {})
-        output_dir = config.get("output", {}).get("shots_dir", "output/shots")  # from config
+        output_dir = config.get("output", {}).get("shots_dir", "output/shots")
         video_path = await client.download_output(history, output_dir, sid)
         log.info(Msg.LG_WAIT_OK.format(path=video_path))
         return {**state, "video_path": video_path, "status": "done"}
@@ -172,8 +170,7 @@ async def wait_node(state: dict) -> dict:
         return {**state, "status": "failed", "error_message": str(e)}
 
 
-def review_node(state: dict) -> dict:
-    sid = state.get("id", "?")
+def _review(state: dict) -> dict:
     status = state.get("status", "")
     if status != "done":
         log.warning(Msg.LG_REVIEW_SKIP.format(status=status))
@@ -182,73 +179,71 @@ def review_node(state: dict) -> dict:
     return {**state, "review_result": "pass"}
 
 
-def route_after_validate(state: dict) -> str:
-    if state.get("status") == "validated":
-        return "submit"
-    retry = state.get("retry_count", 0)
-    max_r = state.get("max_retries", state.get("config", {}).get("agent", {}).get("max_retries", 2))
-    if retry < max_r:
-        return "select"
-    return "fail"
+def _strip(state: dict) -> dict:
+    """去除内部字段，返回结果 dict（与合并/Web 契约一致）"""
+    return {k: v for k, v in state.items() if k not in ("_ctx", "config")}
 
 
-def route_after_review(state: dict) -> str:
-    result = state.get("review_result", "")
-    if result == "pass":
-        return "end"
-    if result == "retry":
-        retry = state.get("retry_count", 0)
-        max_r = state.get("max_retries", state.get("config", {}).get("agent", {}).get("max_retries", 2))
-        if retry < max_r:
-            return "retry"
-    return "fail"
+async def generate_shot(shot: dict, config: dict, registry: TemplateRegistry = None,
+                        client: ComfyUIClient = None, ctx: dict = None) -> dict:
+    """单个镜头的完整生成链路（等价原 8 节点图：analyze→select→optimize→validate→submit→wait→review）"""
+    ctx = ctx or {"registry": registry, "client": client}
+    state = {
+        "id": shot.get("id", ""),
+        "shot_id": shot.get("id", ""),
+        "scene_desc": shot.get("scene_desc", ""),
+        "dialogue": shot.get("dialogue", ""),
+        "screen_text": shot.get("screen_text", ""),
+        "asset_type": shot.get("asset_type", ""),
+        "asset_path": shot.get("asset_path", ""),
+        "duration": shot.get("duration", config.get("input", {}).get("default_duration", 5)),
+        "config": config,
+        "_ctx": ctx,
+        "retry_count": 0,
+        "max_retries": config.get("agent", {}).get("max_retries", 2),
+    }
+    _ensure_agent_config(state)
+    log.info(f"── 镜号 {state['id']} ──")
+
+    state = _analyze(state)
+
+    # validate 失败重试循环（等价 route_after_validate：回退到 select，最多 max_retries 次）
+    for _ in range(state["max_retries"] + 1):
+        state = _select(state)
+        state = _optimize(state)
+        state = _validate(state)
+        if state.get("status") == "validated":
+            break
+
+    if state.get("status") != "validated":
+        return _strip(state)
+
+    state = await _submit(state)
+    if state.get("status") == "pending_ffmpeg":
+        return _strip(state)
+
+    state = await _wait(state)
+    state = _review(state)
+    return _strip(state)
 
 
-def build_graph():
-    workflow = StateGraph(dict)
-    workflow.add_node("analyze", analyze_node)
-    workflow.add_node("select", select_node)
-    workflow.add_node("optimize", optimize_node)
-    workflow.add_node("validate", validate_node)
-    workflow.add_node("submit", submit_node)
-    workflow.add_node("wait", wait_node)
-    workflow.add_node("review", review_node)
-    workflow.set_entry_point("analyze")
-    workflow.add_edge("analyze", "select")
-    workflow.add_edge("select", "optimize")
-    workflow.add_edge("optimize", "validate")
-    workflow.add_conditional_edges("validate", route_after_validate,
-        {"submit": "submit", "select": "select", "fail": END})
-    workflow.add_edge("submit", "wait")
-    workflow.add_edge("wait", "review")
-    workflow.add_conditional_edges("review", route_after_review,
-        {"end": END, "retry": "select", "fail": END})
-    return workflow.compile()
-
-
-async def run_langgraph_batch(shots: list[dict], config: dict,
-                               registry: TemplateRegistry,
-                               client: ComfyUIClient = None) -> list[dict]:
-    graph = build_graph()
+async def run_batch(shots: list[dict], config: dict, registry: TemplateRegistry,
+                    client: ComfyUIClient = None, max_concurrency: int = 2) -> list[dict]:
+    """批量并发生成镜头，asyncio.Semaphore 限制并发数"""
     ctx = {"registry": registry, "client": client}
-    results = []
     log.info(Msg.LG_BATCH_START.format(count=len(shots)))
-    for shot in shots:
-        init_state = {
-            "id": shot.get("id", ""), "scene_desc": shot.get("scene_desc", ""),
-            "dialogue": shot.get("dialogue", ""), "screen_text": shot.get("screen_text", ""),
-            "asset_type": shot.get("asset_type", ""), "asset_path": shot.get("asset_path", ""),
-            "duration": shot.get("duration", config.get("input", {}).get("default_duration", 5)), "config": config, "_ctx": ctx,
-            "retry_count": 0, "max_retries": config.get("agent", {}).get("max_retries", 2),
-        }
-        log.info(f"── 镜号 {init_state['id']} ──")
-        try:
-            final_state = await graph.ainvoke(init_state)
-        except Exception as e:
-            log.error(f"镜号 {init_state['id']} 图执行失败: {e}")
-            final_state = {**init_state, "status": "failed", "error_message": str(e)}
-        result = {k: v for k, v in final_state.items() if k != "_ctx"}
-        results.append(result)
+    sem = asyncio.Semaphore(max_concurrency)
+
+    async def one(shot: dict) -> dict:
+        async with sem:
+            try:
+                return await generate_shot(shot, config, ctx=ctx)
+            except Exception as e:
+                log.error(f"镜号 {shot.get('id', '?')} 生成异常: {e}")
+                base = {k: v for k, v in shot.items() if k not in ("_ctx", "config")}
+                return {**base, "status": "failed", "error_message": str(e)}
+
+    results = await asyncio.gather(*[one(s) for s in shots])
     done = sum(1 for r in results if r.get("status") == "done")
     failed = sum(1 for r in results if r.get("status") == "failed")
     ffmpeg = sum(1 for r in results if r.get("status") == "pending_ffmpeg")

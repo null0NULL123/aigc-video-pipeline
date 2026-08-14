@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from pipeline.input_reader import read_shots
-from pipeline.langgraph_agent import run_langgraph_batch
+from pipeline.generator import run_batch
 from pipeline.comfyui import ComfyUIClient
 from pipeline.registry import TemplateRegistry
 from pipeline import merge as merge_pipeline
@@ -126,7 +126,8 @@ async def async_main(args):
                 timeout=config["comfyui"].get("timeout", 600),
                 poll_interval=config["comfyui"].get("poll_interval", 5),
             ) as client:
-                new_results = await run_langgraph_batch(retry_shots, config, registry, client)
+                new_results = await run_batch(retry_shots, config, registry, client,
+                                              max_concurrency=config.get("agent", {}).get("concurrency", 2))
             # 合并已有 + 新结果
             shot_results = [r for r in existing if r.get("status") == "done"] + new_results
             log.info(f"合并后: {len(shot_results)} 个镜头")
@@ -142,7 +143,8 @@ async def async_main(args):
             timeout=config["comfyui"].get("timeout", 600),
             poll_interval=config["comfyui"].get("poll_interval", 5),
         ) as client:
-            shot_results = await run_langgraph_batch(shots, config, registry, client)
+            shot_results = await run_batch(shots, config, registry, client,
+                                           max_concurrency=config.get("agent", {}).get("concurrency", 2))
 
     # ======== 合并 ========
     if not args.skip_merge and shot_results:
