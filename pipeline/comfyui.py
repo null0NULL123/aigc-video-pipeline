@@ -63,6 +63,9 @@ class ComfyUIClient:
             # Prompt — 覆盖各种 I2V/T2V 节点
             if ct == "CLIPTextEncode" and "text" in inputs:
                 params["prompt"] = ("text", str)
+            elif "JimengSeedream" in ct and "prompt" in inputs:
+                params["prompt"] = ("prompt", str)
+                params["seed"] = ("seed", int)
             elif "JimengSeedance" in ct and "prompt" in inputs:
                 params["prompt"] = ("prompt", str)
                 params["duration"] = ("duration", int)
@@ -223,7 +226,8 @@ class ComfyUIClient:
                         params={"filename": filename, "subfolder": subfolder,
                                 "type": ftype}
                     ) as resp:
-                        local = out_dir / f"shot_{shot_id}.mp4"
+                        ext = Path(filename).suffix or ".mp4"
+                        local = out_dir / f"shot_{shot_id}{ext}"
                         with open(local, "wb") as f:
                             f.write(await resp.read())
                         log.info(Msg.GEN_DOWNLOAD.format(path=str(local)))

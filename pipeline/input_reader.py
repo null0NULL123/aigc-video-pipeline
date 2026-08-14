@@ -37,17 +37,22 @@ def read_shots(excel_path: str) -> list[dict]:
 
     records = df.to_dict(orient="records")
 
+    def _clean(value):
+        """空单元格(dtype=str 会变成 'nan')归一化为空字符串"""
+        text = str(value).strip()
+        return "" if text.lower() in ("nan", "none") else text
+
     # 标准化字段
     shots = []
     for r in records:
         shot = {
             "id": str(r.get("id", "")).strip(),
-            "duration": _parse_duration(str(r.get("时长", r.get("duration", "4")))),
-            "scene_desc": str(r.get("画面内容", r.get("scene_desc", ""))).strip(),
-            "dialogue": str(r.get("台词", r.get("dialogue", ""))).strip(),
-            "screen_text": str(r.get("屏幕字幕", r.get("screen_text", ""))).strip(),
-            "asset_type": str(r.get("素材来源", r.get("asset_type", "none"))).strip(),
-            "asset_path": str(r.get("素材路径", r.get("asset_path", ""))).strip(),
+            "duration": _parse_duration(_clean(r.get("时长", r.get("duration", "")))),
+            "scene_desc": _clean(r.get("画面内容", r.get("scene_desc", ""))),
+            "dialogue": _clean(r.get("台词", r.get("dialogue", ""))),
+            "screen_text": _clean(r.get("屏幕字幕", r.get("screen_text", ""))),
+            "asset_type": _clean(r.get("素材来源", r.get("asset_type", "none"))),
+            "asset_path": _clean(r.get("素材路径", r.get("asset_path", ""))),
             "status": "pending",
             "prompt": "",
             "video_path": "",

@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from web import settings
-from web.routers import config_api, tables, pipeline, videos, system, media
+from web.routers import config_api, tables, pipeline, videos, system, media, assets
 
 app = FastAPI(title="aigc-video 管理面板")
 
@@ -17,6 +17,7 @@ app.include_router(pipeline.router, prefix="/api")
 app.include_router(videos.router, prefix="/api")
 app.include_router(system.router, prefix="/api")
 app.include_router(media.router, prefix="/api")
+app.include_router(assets.router, prefix="/api")
 
 # 静态文件
 app.mount("/static", StaticFiles(directory=str(settings.STATIC_DIR)), name="static")
@@ -24,7 +25,11 @@ app.mount("/static", StaticFiles(directory=str(settings.STATIC_DIR)), name="stat
 
 @app.get("/")
 async def index():
-    return FileResponse(str(settings.STATIC_DIR / "index.html"))
+    # 禁止缓存 index.html，保证前端改动即时生效
+    return FileResponse(
+        str(settings.STATIC_DIR / "index.html"),
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 if __name__ == "__main__":

@@ -15,6 +15,7 @@ SHOTS_FILE = BASE_DIR / "input" / "web_shots.json"
 TABLES_FILE = BASE_DIR / "input" / "tables.json"
 IMPORTED_DIR = BASE_DIR / "output" / "imported"
 OUTPUT_DIR = BASE_DIR / "output"
+ASSETS_DIR = OUTPUT_DIR / "assets" / "images"
 STATIC_DIR = BASE_DIR / "web" / "static"
 PIPELINE_CWD = BASE_DIR
 

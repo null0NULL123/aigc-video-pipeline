@@ -101,7 +101,7 @@ class TemplateRegistry:
             tpl_kw = rules.get("keywords", [])
             workflow_type = tpl.get("workflow_type", "comfyui")
 
-            type_score = 10 if (asset_type and asset_type in valid_types) else 0
+            type_score = 10 if asset_type in valid_types else 0
             kw_score = sum(1 for kw in all_kw if kw in tpl_kw)
             bonus = 0.5 if workflow_type == "comfyui" else 0
 
@@ -116,6 +116,9 @@ class TemplateRegistry:
             "分屏": ["分屏"], "对比": ["对比"], "并排": ["并排"],
             "文字": ["文字"], "动画": ["动画"], "模块": ["模块", "文字"],
             "字幕": ["字幕"], "列表": ["列表", "文字"],
+            "海报": ["图片"], "封面": ["图片"], "图片": ["图片"],
+            "插图": ["图片"], "背景": ["背景"],
+            "动态": ["动画"], "运动": ["动画"], "首帧": ["动画"],
         }
         result = []
         for trigger, extras in kw_map.items():

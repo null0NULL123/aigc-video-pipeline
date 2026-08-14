@@ -160,12 +160,42 @@ def build_global_script(shot_results: list[dict], break_ms: int = 600) -> str:
     return sep.join(parts)
 
 
+def _to_bgr(color: str) -> str:
+    """CSS 十六进制颜色 RRGGBB → libass &H00BBGGRR"""
+    c = (color or "").strip().lstrip("#").upper()
+    if len(c) != 6:
+        c = "FFFFFF"
+    return f"{c[4:6]}{c[2:4]}{c[0:2]}"
+
+
+def build_force_style(font_family: str = "Microsoft YaHei", font_size: int = 48,
+                      font_color: str = "FFFFFF", outline_color: str = "000000",
+                      outline_width: int = 2, alignment: int = 2,
+                      margin_v: int = 40, shadow: int = 0) -> str:
+    """构造 libass force_style（无冒号，避免 ffmpeg filter 转义问题）"""
+    parts = [
+        f"FontName={font_family}",
+        f"FontSize={font_size}",
+        f"PrimaryColour=&H00{_to_bgr(font_color)}",
+        f"OutlineColour=&H00{_to_bgr(outline_color)}",
+        f"Outline={int(outline_width)}",
+        f"Alignment={int(alignment)}",
+        f"MarginV={int(margin_v)}",
+    ]
+    if int(shadow) > 0:
+        parts.append(f"Shadow={int(shadow)}")
+    return ",".join(parts)
+
+
 def compose_final(merged_path: str, audio_path: str, srt_path: str,
                   output_path: str, video_pad: float = 0.0,
                   audio_pad: float = 0.0, ffmpeg_crf: int = 13,
                   ffmpeg_pix_fmt: str = "yuv420p",
                   font_family: str = "Microsoft YaHei",
-                  font_size: int = 48) -> str:
+                  font_size: int = 48,
+                  font_color: str = "FFFFFF", outline_color: str = "000000",
+                  outline_width: int = 2, alignment: int = 2,
+                  margin_v: int = 40, shadow: int = 0) -> str:
     """
     最终一次合成：合并视频 + 全局 TTS 音频（替换原声）+ 全局字幕烧录
     video_pad: 语音比视频长，视频末帧冻结补帧
@@ -190,9 +220,12 @@ def compose_final(merged_path: str, audio_path: str, srt_path: str,
     if audio_pad > 0 and has_audio:
         af_parts.append(f"apad=pad_dur={audio_pad:.3f}")
     if has_srt:
-        vf_parts.append(
-            f"subtitles={srt_name}:force_style='FontSize={font_size},FontName={font_family}'"
+        force_style = build_force_style(
+            font_family=font_family, font_size=font_size, font_color=font_color,
+            outline_color=outline_color, outline_width=outline_width,
+            alignment=alignment, margin_v=margin_v, shadow=shadow,
         )
+        vf_parts.append(f"subtitles={srt_name}:force_style='{force_style}'")
 
     cmd = ["ffmpeg", "-y", "-i", os.path.abspath(merged_path)]
     if has_audio:
@@ -364,6 +397,38 @@ def merge_with_transition(video_paths: list[str], output_path: str,
     return str(out_path)
 
 
+def _compose_shot_segment(video_path: str, sid: str, script: str,
+                          audio_dir: Path, merged_dir: Path,
+                          voice: str, rate: str, silent_rate: int,
+                          crf: int, pix_fmt: str, font_family: str, font_size: int,
+                          sub_style: dict) -> str:
+    """单镜头合成：归一化 → TTS（可选）→ 配音+字幕烧录，返回合成片段路径"""
+    norm_path = str(merged_dir / f"norm_{sid}.mp4")
+    normalize_segment(video_path, norm_path, silent_rate)
+    total_dur = get_video_duration(norm_path)
+    text = (script or "").strip()
+    if not text:
+        return norm_path
+
+    audio_path, srt_path = generate_tts(
+        text, str(audio_dir / f"{sid}_voice"), voice=voice, rate=rate,
+        fallback_duration=total_dur,
+    )
+    _clean_break_entries(srt_path)
+    tts_dur = total_dur
+    if audio_path and Path(audio_path).exists() and Path(audio_path).stat().st_size > 1000:
+        tts_dur = get_video_duration(audio_path)
+    video_pad = max(0.0, tts_dur - total_dur)
+    audio_pad = max(0.0, total_dur - tts_dur)
+    out_path = str(merged_dir / f"composed_{sid}.mp4")
+    return compose_final(
+        norm_path, audio_path, srt_path, out_path,
+        video_pad=video_pad, audio_pad=audio_pad,
+        ffmpeg_crf=crf, ffmpeg_pix_fmt=pix_fmt,
+        font_family=font_family, font_size=font_size, **sub_style,
+    )
+
+
 def run(shot_results: list[dict], config: dict) -> str:
     """
     完整合并流程：先拼接所有镜头 → 全局 TTS + 字幕 → 最终一次合成
@@ -398,6 +463,16 @@ def run(shot_results: list[dict], config: dict) -> str:
     font_size = int(ffmpeg_cfg.get("font_size", 48))
     break_ms = int(merge_cfg.get("break_between_shots_ms", 600))
     silent_rate = int(merge_cfg.get("silent_sample_rate", 44100))
+    tts_mode = merge_cfg.get("tts_mode", "whole")
+    sub_cfg = ffmpeg_cfg.get("subtitle", {}) or {}
+    sub_style = {
+        "font_color": sub_cfg.get("font_color", "FFFFFF"),
+        "outline_color": sub_cfg.get("outline_color", "000000"),
+        "outline_width": int(sub_cfg.get("outline_width", 2)),
+        "alignment": int(sub_cfg.get("alignment", 2)),
+        "margin_v": int(sub_cfg.get("margin_v", 40)),
+        "shadow": int(sub_cfg.get("shadow", 0)),
+    }
 
     # 收集有效镜头
     valid = []
@@ -414,6 +489,23 @@ def run(shot_results: list[dict], config: dict) -> str:
 
     log.info(Msg.MERGE_TOTAL_COUNT.format(count=len(valid)))
     batch_id = config.get("_batch_id", "")
+    output_filename = f"{batch_id}.mp4" if batch_id else "final_video.mp4"
+    output_path = str(final_dir / output_filename)
+
+    # ── Per-shot 模式：每个镜头独立 TTS + 字幕烧录，再拼接 ──
+    if tts_mode == "per_shot":
+        log.info("per-shot 模式：逐镜头配音+字幕")
+        composed = []
+        for r in valid:
+            sid = str(r.get("shot_id", "?"))
+            script = (r.get("dialogue") or "").strip() or (r.get("screen_text") or "").strip()
+            seg = _compose_shot_segment(
+                r.get("video_path", ""), sid, script,
+                audio_dir, merged_dir, voice, rate, silent_rate,
+                crf, pix_fmt, font_family, font_size, sub_style,
+            )
+            composed.append(seg)
+        return concat_videos(composed, output_path, crf, pix_fmt)
 
     # ── Stage 1: 归一化 + 拼接 ──
     normalized = []
@@ -429,6 +521,11 @@ def run(shot_results: list[dict], config: dict) -> str:
     merged_path = concat_videos(normalized, str(merged_dir / merged_name), crf, pix_fmt)
     total_dur = get_video_duration(merged_path)
     log.info(Msg.MERGE_TOTAL.format(dur=f"{total_dur:.1f}"))
+
+    # none 模式：不配音不加字幕，纯拼接
+    if tts_mode == "none":
+        log.info("tts_mode=none：跳过配音与字幕")
+        return merged_path
 
     # ── Stage 2+3: 全局 TTS + 全局字幕（时间轴从 0 到总时长）──
     script = build_global_script(valid, break_ms)
@@ -458,11 +555,9 @@ def run(shot_results: list[dict], config: dict) -> str:
         log.info(Msg.MERGE_PAD_AUDIO.format(dur=f"{audio_pad:.1f}"))
 
     # ── Stage 4: 最终一次合成（替换原声 + 烧录全局字幕）──
-    output_filename = f"{batch_id}.mp4" if batch_id else "final_video.mp4"
-    output_path = str(final_dir / output_filename)
     return compose_final(
         merged_path, audio_path, srt_path, output_path,
         video_pad=video_pad, audio_pad=audio_pad,
         ffmpeg_crf=crf, ffmpeg_pix_fmt=pix_fmt,
-        font_family=font_family, font_size=font_size,
+        font_family=font_family, font_size=font_size, **sub_style,
     )

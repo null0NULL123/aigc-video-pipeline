@@ -1,0 +1,120 @@
+{
+  "id": "seedream_t2i2v",
+  "name": "Seedream T2I + Seedance I2V（文生图→图生视频）",
+  "description": "Seedream 4.0 生成首帧图片 → 直接送入 Seedance 2.0 动画化，输出视频",
+  "category": "t2v",
+  "match_rules": {
+    "asset_type": [
+      "ai_generated",
+      "none",
+      ""
+    ],
+    "keywords": [
+      "动画",
+      "动态",
+      "运动",
+      "首帧"
+    ]
+  },
+  "usage": {
+    "required_params": [
+      "prompt",
+      "duration"
+    ],
+    "optional_params": [
+      "seed"
+    ],
+    "output": "video",
+    "dual_prompt": true,
+    "note": "image_prompt: 首帧画面描述; motion_prompt: 动作/运镜描述; duration: 秒数"
+  },
+  "workflow": {
+    "1": {
+      "class_type": "JimengSeedream4",
+      "inputs": {
+        "client": [
+          "2",
+          0
+        ],
+        "model_version": "{{seedream.model_version}}",
+        "prompt": "prompt placeholder",
+        "size": "{{seedream.size}}",
+        "width": "{{seedream.width}}",
+        "height": "{{seedream.height}}",
+        "seed": "{{seedream.default_seed}}",
+        "enable_group_generation": false,
+        "max_images": "{{seedream.max_images}}",
+        "generation_count": 1,
+        "watermark": "{{seedream.watermark}}",
+        "images": {}
+      }
+    },
+    "2": {
+      "class_type": "JimengAPIClient",
+      "inputs": {
+        "new_api_key": "{{api.jimeng.api_key}}",
+        "new_key_name": "",
+        "key_name": "{{api.jimeng.key_name}}"
+      }
+    },
+    "3": {
+      "class_type": "JimengSeedance2",
+      "inputs": {
+        "client": [
+          "2",
+          0
+        ],
+        "model_version": "{{seedance.model_version}}",
+        "prompt": "motion placeholder",
+        "enable_random_seed": "{{seedance.enable_random_seed}}",
+        "seed": "{{seedance.default_seed}}",
+        "resolution": "{{seedance.resolution}}",
+        "aspect_ratio": "{{seedance.aspect_ratio}}",
+        "auto_duration": false,
+        "duration": 5,
+        "generate_audio": "{{seedance.generate_audio}}",
+        "enable_web_search": false,
+        "generation_count": 1,
+        "filename_prefix": "seedream_t2i2v_output",
+        "save_last_frame_batch": false,
+        "non_blocking": false,
+        "ref_images": {},
+        "ref_videos": {},
+        "ref_audios": {},
+        "first_frame_image": [
+          "1",
+          0
+        ],
+        "last_frame_image": null
+      }
+    },
+    "4": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "3",
+          0
+        ],
+        "filename_prefix": "shot_output",
+        "format": "mp4",
+        "codec": "auto"
+      }
+    }
+  },
+  "injectable_nodes": {
+    "1": {
+      "params": {
+        "prompt": "prompt",
+        "seed": "seed"
+      }
+    },
+    "3": {
+      "params": {
+        "prompt": "prompt",
+        "duration": "duration",
+        "seed": "seed",
+        "filename_prefix": "filename_prefix"
+      }
+    }
+  }
+}

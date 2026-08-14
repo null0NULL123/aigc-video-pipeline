@@ -1,85 +1,215 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="aigc-video 视频生成管理面板：表格管理、批量生成、镜头库、视频合并、配音字幕与系统监控">
+  <meta name="theme-color" content="#0F172A">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23EC4899'/%3E%3Cstop offset='1' stop-color='%232563EB'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M13 10l9 6-9 6z' fill='%23fff'/%3E%3C/svg%3E">
   <title>aigc-video 管理面板</title>
-  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
-  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-  <script src="https://unpkg.com/element-plus"></script>
-  <script src="https://unpkg.com/@element-plus/icons-vue"></script>
-  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/element-plus@2.9.3/dist/index.css">
+  <link rel="stylesheet" href="https://unpkg.com/element-plus@2.9.3/theme-chalk/dark/css-vars.css">
+  <script src="https://unpkg.com/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/element-plus@2.9.3"></script>
+  <script src="https://unpkg.com/@element-plus/icons-vue@2.3.1"></script>
+  <script src="https://unpkg.com/axios@1.7.9/dist/axios.min.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{background:#f5f7fa;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    html.dark{
+      --el-color-primary:#EC4899;
+      --el-color-primary-light-3:#F06BAF;
+      --el-color-primary-light-5:#F48FC5;
+      --el-color-primary-light-7:#F8B3DB;
+      --el-color-primary-light-8:#FAC5E4;
+      --el-color-primary-light-9:#FDDEF0;
+      --el-color-primary-dark-2:#D6317E;
+      --color-brand:#EC4899;
+      --color-accent:#2563EB;
+      --color-success:#34D399;
+      --color-danger:#F87171;
+      --color-warning:#FBBF24;
+      --el-border-radius-base:8px;
+      --el-border-radius-small:6px;
+      --el-card-border-radius:12px;
+      --el-bg-color-page:#0F172A;
+      --el-bg-color:#141D33;
+      --el-bg-color-overlay:#1A2440;
+      --el-fill-color-blank:#141D33;
+      --el-text-color-primary:#F1F5F9;
+      --el-text-color-regular:#CBD5E1;
+      --el-text-color-secondary:#94A3B8;
+      --el-text-color-placeholder:#64748B;
+      --el-border-color:#2A3550;
+      --el-border-color-light:#22304A;
+      --el-border-color-lighter:#1D2A42;
+    }
+    html.dark body{
+      background:radial-gradient(1200px 600px at 80% -10%,rgba(236,72,153,.08),transparent 60%),
+                 radial-gradient(1000px 500px at 10% 0%,rgba(37,99,235,.08),transparent 55%),
+                 #0F172A;
+      color:var(--el-text-color-primary);
+      font-family:"Fira Sans",-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    }
     #app{min-height:100vh}
-    .top-bar{background:#fff;border-bottom:1px solid #e4e7ed;padding:0 24px;display:flex;align-items:center;height:56px}
-    .top-bar h1{font-size:18px;font-weight:600;color:#303133;margin-right:32px}
-    .top-bar .logo{color:#409eff;margin-right:6px}
-    .main-content{max-width:1200px;margin:24px auto;padding:0 16px}
-    .group-title{font-size:14px;font-weight:600;color:#606266;padding:12px 0 8px;border-bottom:1px solid #ebeef5;margin-bottom:16px}
+
+    /* 顶栏 */
+    .top-bar{position:sticky;top:0;z-index:100;background:rgba(11,17,32,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--color-border,#2A3550);padding:0 24px;display:flex;align-items:center;height:60px}
+    .top-bar h1{font-size:17px;font-weight:700;color:#fff;margin-right:32px;display:flex;align-items:center;gap:10px;letter-spacing:.3px;flex-shrink:0}
+    .logo-badge{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#EC4899,#2563EB);display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;box-shadow:0 4px 14px rgba(236,72,153,.35)}
+    .top-bar .el-menu{background:transparent;border:none}
+    .top-bar .el-menu-item{color:#94A3B8;border-radius:8px;margin:0 2px;font-size:13.5px;transition:color .15s,background .15s}
+    .top-bar .el-menu-item .el-icon{margin-right:6px}
+    .top-bar .el-menu-item:hover{background:rgba(255,255,255,.06);color:#E2E8F0}
+    .top-bar .el-menu-item.is-active{color:#F472B6;background:rgba(236,72,153,.12);border-bottom:none!important}
+    .comfy-pill{display:flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--color-border,#2A3550);border-radius:999px;background:rgba(255,255,255,.04);font-size:12px;color:#94A3B8;flex-shrink:0}
+    .status-dot{width:8px;height:8px;border-radius:50%;position:relative;flex-shrink:0}
+    .status-dot.online{background:#34D399;box-shadow:0 0 0 3px rgba(52,211,153,.15)}
+    .status-dot.online::after{content:'';position:absolute;inset:-3px;border-radius:50%;border:1px solid rgba(52,211,153,.6);animation:ping 2s cubic-bezier(0,0,.2,1) infinite}
+    .status-dot.offline{background:#F87171;box-shadow:0 0 0 3px rgba(248,113,113,.15)}
+    @keyframes ping{75%,100%{transform:scale(1.8);opacity:0}}
+    .menu-toggle{display:none;padding:6px 10px;border:1px solid var(--color-border,#2A3550);border-radius:8px;margin-right:8px;flex-shrink:0}
+    .top-nav{flex:1;min-width:0;display:flex}
+    .top-nav .el-menu{flex:1}
+    .top-nav .el-menu-item{flex-shrink:0}
+    .menu-drawer-item{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:8px;cursor:pointer;font-size:14px;color:var(--el-text-color-regular);transition:background .15s,color .15s}
+    .menu-drawer-item:hover{background:rgba(255,255,255,.06);color:var(--el-text-color-primary)}
+    .menu-drawer-item.active{color:var(--color-brand);background:rgba(236,72,153,.12)}
+
+    .main-content{max-width:1280px;margin:24px auto;padding:0 16px}
+    h3,h4{color:var(--el-text-color-primary)}
+
+    .group-title{font-size:14px;font-weight:600;color:#CBD5E1;padding:12px 0 8px;border-bottom:1px solid var(--el-border-color-lighter);margin-bottom:16px}
     .config-form .el-form-item{margin-bottom:14px}
-    .config-form .el-form-item__label{font-size:13px;color:#606266}
+    .config-form .el-form-item__label{font-size:13px;color:#94A3B8}
     .config-collapse{margin-bottom:8px}
-    .config-collapse .el-collapse-item__header{font-weight:600;font-size:15px}
-    .yaml-editor{font-family:Consolas,monospace;font-size:13px;line-height:1.6;border:1px solid #dcdfe6;border-radius:4px;padding:12px;background:#fafafa;min-height:200px;width:100%;resize:vertical}
-    .yaml-editor:focus{border-color:#409eff;outline:none}
-    .action-bar{position:sticky;bottom:0;background:#fff;border-top:1px solid #e4e7ed;padding:16px 0;display:flex;gap:12px;justify-content:flex-end;margin-top:24px}
+    .config-collapse .el-collapse-item__header{font-weight:600;font-size:15px;border-bottom-color:var(--el-border-color-lighter)}
+    .yaml-editor{font-family:"Fira Code",Consolas,monospace;font-size:13px;line-height:1.6;border:1px solid var(--el-border-color);border-radius:8px;padding:12px;background:#0B1120;color:#E2E8F0;min-height:200px;width:100%;resize:vertical}
+    .yaml-editor:focus{border-color:#EC4899;outline:none;box-shadow:0 0 0 3px rgba(236,72,153,.15)}
+    .action-bar{position:sticky;bottom:0;background:rgba(11,17,32,.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--el-border-color-lighter);padding:16px 0;display:flex;gap:12px;justify-content:flex-end;margin-top:24px}
     .template-card{margin-bottom:12px}
-    .template-json{font-family:Consolas,monospace;font-size:12px;background:#f5f7fa;padding:12px;border-radius:4px;max-height:300px;overflow:auto;white-space:pre-wrap}
+    .template-json{font-family:"Fira Code",Consolas,monospace;font-size:12px;background:#0B1120;color:#94A3B8;padding:12px;border-radius:8px;max-height:300px;overflow:auto;white-space:pre-wrap}
     .shots-toolbar{display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
-    .shots-toolbar .count{color:#909399;font-size:13px;margin-left:auto}
+    .shots-toolbar .count{color:#64748B;font-size:13px;margin-left:auto}
     .shot-dialog .el-form-item{margin-bottom:12px}
     .el-table .cell{font-size:13px}
+    .el-table{--el-table-header-bg-color:#0F1A30;--el-table-row-hover-bg-color:rgba(236,72,153,.06);--el-table-border-color:var(--el-border-color-lighter)}
     .scene-cell{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .drag-handle{cursor:grab;color:#c0c4cc;font-size:18px}
-    .log-panel{background:#1e1e1e;color:#d4d4d4;font-family:Consolas,monospace;font-size:12px;line-height:1.8;padding:16px;border-radius:6px;max-height:400px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
+    .log-panel{background:#0B1120;color:#A5F3FC;font-family:"Fira Code",Consolas,monospace;font-size:12px;line-height:1.8;padding:16px;border-radius:8px;border:1px solid var(--el-border-color-lighter);max-height:400px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
     .status-card{margin-bottom:16px}
-    .status-card .el-card__header{padding:10px 16px;font-weight:600}
+    .status-card .el-card__header{padding:12px 16px;font-weight:600}
     .video-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
-    .video-card video{width:100%;border-radius:6px;background:#000;max-height:200px}
-    .video-card .info{padding:8px 0;font-size:13px;color:#606266}
+    .video-card{overflow:hidden;transition:transform .2s ease,box-shadow .2s ease}
+    .video-card:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(0,0,0,.45)}
+    .video-card video{width:100%;background:#000;max-height:200px}
+    .video-card .info{padding:10px 12px;font-size:13px;color:#94A3B8}
     .stat-row{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:16px}
-    .stat-item{background:#fff;border:1px solid #e4e7ed;border-radius:8px;padding:16px 24px;min-width:160px;text-align:center}
-    .stat-item .val{font-size:28px;font-weight:700;color:#303133}
-    .stat-item .label{font-size:12px;color:#909399;margin-top:4px}
+    .stat-item{background:var(--el-bg-color-overlay);border:1px solid var(--el-border-color);border-radius:12px;padding:18px 28px;min-width:160px;text-align:center;transition:border-color .2s}
+    .stat-item:hover{border-color:rgba(236,72,153,.5)}
+    .stat-item .val{font-size:28px;font-weight:700;color:#fff}
+    .stat-item .label{font-size:12px;color:#64748B;margin-top:4px}
     .tables-layout{display:flex;gap:16px;align-items:flex-start}
-    .table-list{width:230px;flex-shrink:0;background:#fff;border:1px solid #e4e7ed;border-radius:8px;padding:12px}
-    .table-list .item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:6px;cursor:pointer;font-size:13px}
-    .table-list .item.active{background:#ecf5ff;color:#409eff}
-    .table-list .item .meta{color:#909399;font-size:12px}
+    .table-list{width:230px;flex-shrink:0;background:var(--el-bg-color);border:1px solid var(--el-border-color);border-radius:12px;padding:12px}
+    .table-list .item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;transition:background .15s}
+    .table-list .item:hover{background:rgba(255,255,255,.05)}
+    .table-list .item.active{background:rgba(236,72,153,.12);color:#F472B6}
+    .table-list .item .meta{color:#64748B;font-size:12px}
     .table-main{flex:1;min-width:0}
     .gen-table-card{margin-bottom:16px}
-    .gen-summary{display:flex;align-items:center;gap:16px;margin:12px 0}
-    .video-item{display:flex;gap:12px;align-items:center;padding:8px;border:1px solid #e4e7ed;border-radius:6px;margin-bottom:8px;background:#fff}
-    .video-item video{width:160px;border-radius:4px;background:#000}
-    .video-item .vname{font-size:13px;font-weight:600;color:#303133}
-    .video-item .vmeta{font-size:12px;color:#909399;margin-top:2px}
-    .order-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #ebeef5;border-radius:6px;margin-bottom:8px;background:#fff}
-    .order-item .idx{width:24px;height:24px;border-radius:50%;background:#409eff;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+    .gen-summary{display:flex;align-items:center;gap:16px;margin:12px 0;flex-wrap:wrap}
+    .video-item{display:flex;gap:12px;align-items:center;padding:8px;border:1px solid var(--el-border-color);border-radius:10px;margin-bottom:8px;background:var(--el-bg-color);cursor:pointer;transition:border-color .15s,background .15s}
+    .video-item:hover{border-color:#EC4899;background:var(--el-bg-color-overlay)}
+    .thumb-wrap{position:relative;flex-shrink:0}
+    .thumb-wrap video{width:160px;border-radius:6px;background:#000;display:block}
+    .play-btn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35);opacity:0;transition:opacity .15s;border:none;cursor:pointer;color:#fff;font-size:22px;border-radius:6px}
+    .thumb-wrap:hover .play-btn{opacity:1}
+    .video-item .vname{font-size:13px;font-weight:600;color:#E2E8F0}
+    .video-item .vmeta{font-size:12px;color:#64748B;margin-top:2px}
+    .order-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--el-border-color);border-radius:10px;margin-bottom:8px;background:var(--el-bg-color)}
+    .order-item .idx{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#EC4899,#DB2777);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
     .split-pane{display:flex;gap:16px;align-items:flex-start}
     .pane{flex:1;min-width:0}
-    .pane-list{max-height:520px;overflow-y:auto;border:1px solid #ebeef5;border-radius:6px;padding:8px}
+    .pane-list{max-height:520px;overflow-y:auto;border:1px solid var(--el-border-color);border-radius:10px;padding:8px}
+
+    /* 滚动条 */
+    ::-webkit-scrollbar{width:8px;height:8px}
+    ::-webkit-scrollbar-thumb{background:#2A3550;border-radius:4px}
+    ::-webkit-scrollbar-thumb:hover{background:#3A4766}
+    ::-webkit-scrollbar-track{background:transparent}
+
+    /* 响应式 */
+    @media (max-width:1180px){
+      .top-nav .el-menu{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}
+      .top-nav .el-menu::-webkit-scrollbar{display:none}
+    }
+    @media (max-width:900px){
+      .main-content{margin-top:16px}
+      .tables-layout{flex-direction:column}
+      .table-list{width:100%}
+      .split-pane{flex-direction:column}
+      .stat-row{gap:12px}
+      .stat-item{min-width:calc(50% - 12px);padding:14px 16px}
+      .stat-item .val{font-size:22px}
+      .action-bar{flex-wrap:wrap}
+      .top-bar{padding:0 12px}
+      .top-bar h1{margin-right:12px}
+    }
+    @media (max-width:768px){
+      .menu-toggle{display:inline-flex!important}
+      .video-grid{grid-template-columns:1fr 1fr;gap:10px}
+      .shots-toolbar .count{margin-left:0;width:100%}
+      .gen-summary>span{width:100%}
+    }
+    @media (max-width:480px){
+      .top-nav{display:none}
+      .video-grid{grid-template-columns:1fr}
+      .thumb-wrap video{width:120px}
+      .stat-item{min-width:100%}
+      .comfy-pill span:last-child{display:none}
+    }
+
+    /* 无障碍 */
+    :focus-visible{outline:2px solid var(--color-brand);outline-offset:2px;border-radius:4px}
+    .play-btn:focus-visible{opacity:1}
+    .video-item:focus-visible{border-color:var(--color-brand);background:var(--el-bg-color-overlay)}
+    @media (prefers-reduced-motion:reduce){
+      .status-dot.online::after{animation:none}
+      .video-card,.video-card:hover{transition:none;transform:none}
+      .play-btn{transition:none}
+    }
   </style>
 </head>
 <body>
 <div id="app">
   <div class="top-bar">
-    <h1><span class="logo">▶</span> aigc-video</h1>
-    <el-menu mode="horizontal" :default-active="activeTab" @select="switchTab($event)" :ellipsis="false" style="border:none;flex:1;">
-      <el-menu-item index="tables">📋 表格</el-menu-item>
-      <el-menu-item index="generate">⚡ 生成</el-menu-item>
-      <el-menu-item index="library">🎬 镜头库</el-menu-item>
-      <el-menu-item index="merge">🔗 合并</el-menu-item>
-      <el-menu-item index="dub">🎙 配音字幕</el-menu-item>
-      <el-menu-item index="settings">⚙ 设置</el-menu-item>
-      <el-menu-item index="system">📊 系统</el-menu-item>
-    </el-menu>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <span :style="{color:comfyOnline?'#67c23a':'#f56c6c',fontSize:'20px'}">●</span>
-      <span style="font-size:12px;color:#909399">ComfyUI</span>
+    <h1><span class="logo-badge"><el-icon :size="16"><Film></Film></el-icon></span> aigc-video</h1>
+    <el-button class="menu-toggle" text aria-label="打开菜单" @click="menuDlg=true"><el-icon :size="20"><Fold></Fold></el-icon></el-button>
+    <div class="top-nav">
+      <el-menu mode="horizontal" :default-active="activeTab" @select="switchTab($event)" :ellipsis="false" style="border:none;flex:1;">
+        <el-menu-item index="tables"><el-icon><Notebook></Notebook></el-icon><span>表格</span></el-menu-item>
+        <el-menu-item index="generate"><el-icon><Lightning></Lightning></el-icon><span>生成</span></el-menu-item>
+        <el-menu-item index="library"><el-icon><Film></Film></el-icon><span>镜头库</span></el-menu-item>
+        <el-menu-item index="merge"><el-icon><copy-document></copy-document></el-icon><span>合并</span></el-menu-item>
+        <el-menu-item index="dub"><el-icon><Microphone></Microphone></el-icon><span>配音字幕</span></el-menu-item>
+        <el-menu-item index="settings"><el-icon><Setting></Setting></el-icon><span>设置</span></el-menu-item>
+        <el-menu-item index="system"><el-icon><data-line></data-line></el-icon><span>系统</span></el-menu-item>
+      </el-menu>
+    </div>
+    <div class="comfy-pill" :title="comfyOnline?'ComfyUI 在线':'ComfyUI 离线'">
+      <span class="status-dot" :class="comfyOnline?'online':'offline'" aria-hidden="true"></span>
+      <span>ComfyUI</span>
     </div>
   </div>
+
+  <el-drawer v-model="menuDlg" direction="ltr" size="240px" :with-header="false">
+    <div style="display:flex;flex-direction:column;gap:4px;">
+      <div v-for="m in menuItems" :key="m.index" class="menu-drawer-item" :class="{active:activeTab===m.index}" @click="switchTab(m.index);menuDlg=false">
+        <el-icon><component :is="m.icon"></component></el-icon><span>{{ m.label }}</span>
+      </div>
+    </div>
+  </el-drawer>
 
   <!-- ═══════════════ 1. 表格管理 ═══════════════ -->
   <div class="main-content" v-if="activeTab==='tables'">
@@ -87,7 +217,7 @@
       <div class="table-list">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
           <span style="font-weight:600;font-size:14px;">表格</span>
-          <el-button size="small" type="primary" link @click="createTable"><el-icon><Plus/></el-icon></el-button>
+          <el-button size="small" type="primary" link aria-label="新建表格" @click="createTable"><el-icon><Plus></Plus></el-icon></el-button>
         </div>
         <div v-for="t in tables" :key="t.id" class="item" :class="{active: curTable===t.id}" @click="selectTable(t.id)">
           <div>
@@ -95,29 +225,29 @@
             <div class="meta">{{ t.shot_count }} 镜头 / {{ t.done_count }} 完成</div>
           </div>
           <el-popconfirm title="删除整个表格？" @confirm="deleteTable(t.id)" width="180">
-            <template #reference><el-icon @click.stop style="color:#f56c6c"><Delete/></el-icon></template>
+            <template #reference><el-icon @click.stop aria-label="删除表格" style="color:var(--el-color-danger)"><Delete></Delete></el-icon></template>
           </el-popconfirm>
         </div>
-        <div v-if="!tables.length" style="color:#909399;font-size:13px;text-align:center;padding:16px 0;">暂无表格</div>
+        <div v-if="!tables.length" style="color:var(--el-text-color-secondary);font-size:13px;text-align:center;padding:16px 0;">暂无表格</div>
       </div>
 
       <div class="table-main" v-if="curTable">
         <div class="shots-toolbar">
-          <el-button type="primary" @click="openShotDialog()"><el-icon><Plus/></el-icon> 新增镜头</el-button>
-          <el-upload :action="'/api/tables/'+curTable+'/import'" :on-success="onImportSuccess" :show-file-list="false" accept=".csv,.xlsx,.xls">
-            <el-button><el-icon><Upload/></el-icon> 导入</el-button>
+          <el-button type="primary" @click="openShotDialog()"><el-icon><Plus></Plus></el-icon> 新增镜头</el-button>
+          <el-upload :action="'/api/tables/'+curTable+'/import'" :on-success="onImportSuccess" :on-error="onUploadError" :show-file-list="false" accept=".csv,.xlsx,.xls">
+            <el-button><el-icon><Upload></Upload></el-icon> 导入</el-button>
           </el-upload>
-          <el-button @click="exportShots"><el-icon><Download/></el-icon> 导出 CSV</el-button>
+          <el-button @click="exportShots"><el-icon><Download></Download></el-icon> 导出 CSV</el-button>
           <span class="count">共 {{ tableShots.length }} 个镜头</span>
         </div>
         <el-table :data="tableShots" border stripe row-key="id" size="default">
           <el-table-column label="顺序" width="80" align="center">
             <template #default="{row,$index}">
-              <el-button link size="small" :disabled="$index===0" @click="moveShot($index,-1)"><el-icon><Top/></el-icon></el-button>
-              <el-button link size="small" :disabled="$index===tableShots.length-1" @click="moveShot($index,1)"><el-icon><Bottom/></el-icon></el-button>
+              <el-button link size="small" :disabled="$index===0" @click="moveShot($index,-1)"><el-icon><Top></Top></el-icon></el-button>
+              <el-button link size="small" :disabled="$index===tableShots.length-1" @click="moveShot($index,1)"><el-icon><Bottom></Bottom></el-icon></el-button>
             </template>
           </el-table-column>
-          <el-table-column prop="id" label="ID" width="60" align="center"/>
+          <el-table-column prop="id" label="ID" width="60" align="center"></el-table-column>
           <el-table-column prop="duration" label="时长" width="70" align="center">
             <template #default="{row}">{{ row.duration }}s</template>
           </el-table-column>
@@ -150,26 +280,41 @@
           </el-table-column>
         </el-table>
       </div>
-      <div class="table-main" v-else style="color:#909399;text-align:center;padding:60px 0;">请选择或新建一个表格</div>
+      <div class="table-main" v-else style="color:var(--el-text-color-secondary);text-align:center;padding:60px 0;">请选择或新建一个表格</div>
     </div>
   </div>
 
   <!-- 镜头弹窗 -->
-  <el-dialog v-model="shotDlg" :title="shotForm.id?'编辑镜头':'新增镜头'" width="600px">
+  <el-dialog v-model="shotDlg" :title="shotForm.id?'编辑镜头':'新增镜头'" :width="isNarrow?'94vw':'600px'">
     <el-form :model="shotForm" label-width="90px" class="shot-dialog">
-      <el-form-item label="时长 (秒)"><el-input-number v-model="shotForm.duration" :min="1" :max="30"/></el-form-item>
-      <el-form-item label="画面内容"><el-input v-model="shotForm.scene_desc" type="textarea" :rows="3"/></el-form-item>
-      <el-form-item label="台词"><el-input v-model="shotForm.dialogue" type="textarea" :rows="2"/></el-form-item>
-      <el-form-item label="屏幕字幕"><el-input v-model="shotForm.screen_text" type="textarea" :rows="2"/></el-form-item>
+      <el-form-item label="时长 (秒)"><el-input-number v-model="shotForm.duration" :min="1" :max="30"></el-input-number></el-form-item>
+      <el-form-item label="画面内容"><el-input v-model="shotForm.scene_desc" type="textarea" :rows="3"></el-input></el-form-item>
+      <el-form-item label="台词"><el-input v-model="shotForm.dialogue" type="textarea" :rows="2"></el-input></el-form-item>
+      <el-form-item label="屏幕字幕"><el-input v-model="shotForm.screen_text" type="textarea" :rows="2"></el-input></el-form-item>
       <el-form-item label="素材类型">
         <el-select v-model="shotForm.asset_type">
-          <el-option label="AI 生成" value="ai_generated"/>
-          <el-option label="图片素材" value="image"/>
-          <el-option label="无素材" value="none"/>
+          <el-option label="AI 生成" value="ai_generated"></el-option>
+          <el-option label="图片素材" value="image"></el-option>
+          <el-option label="无素材" value="none"></el-option>
         </el-select>
       </el-form-item>
-      <el-form-item label="素材路径" v-if="shotForm.asset_type==='image'">
-        <el-input v-model="shotForm.asset_path" placeholder="input/xxx.png"/>
+      <el-form-item label="素材选择" v-if="shotForm.asset_type==='image'">
+        <div style="width:100%">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+            <el-upload action="/api/assets/images" :on-success="onAssetUploaded" :on-error="onUploadError" :show-file-list="false" accept=".png,.jpg,.jpeg,.webp,.gif">
+              <el-button size="small" type="primary" plain><el-icon><Upload></Upload></el-icon> 上传图片</el-button>
+            </el-upload>
+            <el-input v-model="shotForm.asset_path" size="small" placeholder="或手动输入相对路径"></el-input>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;max-height:180px;overflow-y:auto;">
+            <div v-for="img in assetImages" :key="img.path" @click="shotForm.asset_path=img.path"
+                 style="border:2px solid #ebeef5;border-radius:6px;cursor:pointer;overflow:hidden;"
+                 :style="shotForm.asset_path===img.path?'border-color:var(--el-color-primary)':''">
+              <img :src="'/api/assets/images/'+img.path" style="width:100%;height:56px;object-fit:cover;display:block"/>
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--el-text-color-secondary);margin-top:4px;">点击选择素材图片，路径自动填入</div>
+        </div>
       </el-form-item>
     </el-form>
     <template #footer>
@@ -197,7 +342,7 @@
                            @change="val=>toggleGen(t.id,row.id,val)"/>
             </template>
           </el-table-column>
-          <el-table-column prop="id" label="ID" width="50" align="center"/>
+          <el-table-column prop="id" label="ID" width="50" align="center"></el-table-column>
           <el-table-column prop="duration" label="时长" width="60" align="center">
             <template #default="{row}">{{ row.duration }}s</template>
           </el-table-column>
@@ -213,10 +358,10 @@
       </div>
 
       <div class="gen-summary">
-        <span>已选 <b style="color:#409eff">{{ genTotal }}</b> 个镜头</span>
-        <el-input v-model="genName" placeholder="批次名（留空自动生成）" style="width:220px"/>
+        <span>已选 <b style="color:var(--el-color-primary)">{{ genTotal }}</b> 个镜头</span>
+        <el-input v-model="genName" placeholder="批次名（留空自动生成）" style="width:220px"></el-input>
         <el-button type="primary" @click="runGenerate" :loading="pipelineRunning" :disabled="pipelineRunning || genTotal===0">
-          <el-icon v-if="!pipelineRunning"><VideoPlay/></el-icon>
+          <el-icon v-if="!pipelineRunning"><video-play></video-play></el-icon>
           {{ pipelineRunning ? '生成中...' : '开始生成' }}
         </el-button>
       </div>
@@ -247,31 +392,34 @@
   <!-- ═══════════════ 3. 镜头库 ═══════════════ -->
   <div class="main-content" v-if="activeTab==='library'">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <h3>镜头库 <span style="color:#909399;font-weight:normal;font-size:14px;">共 {{ videosList.length }} 个视频</span></h3>
+      <h3>镜头库 <span style="color:var(--el-text-color-secondary);font-weight:normal;font-size:14px;">共 {{ videosList.length }} 个视频</span></h3>
       <div>
-        <el-upload action="/api/videos/import" :on-success="onVideoImported" :show-file-list="false" accept=".mp4,.mov,.m4v">
-          <el-button type="primary" plain><el-icon><Upload/></el-icon> 导入现有视频</el-button>
+        <el-upload action="/api/videos/import" :on-success="onVideoImported" :on-error="onUploadError" :show-file-list="false" accept=".mp4,.mov,.m4v">
+          <el-button type="primary" plain><el-icon><Upload></Upload></el-icon> 导入现有视频</el-button>
         </el-upload>
-        <el-button @click="loadVideos" style="margin-left:8px;"><el-icon><Refresh/></el-icon> 刷新</el-button>
+        <el-button @click="loadVideos" style="margin-left:8px;"><el-icon><Refresh></Refresh></el-icon> 刷新</el-button>
       </div>
     </div>
 
     <div v-if="Object.keys(videoBatches).length === 0" style="text-align:center;padding:60px 0;">
-      <el-empty description="还没有视频"/>
+      <el-empty description="还没有视频"></el-empty>
     </div>
 
     <div v-for="(batchVideos, batchId) in videoBatches" :key="batchId" style="margin-bottom:24px;">
-      <h4 style="margin-bottom:12px;color:#606266;">
+      <h4 style="margin-bottom:12px;color:var(--el-text-color-regular);">
         <el-tag :type="batchId==='导入'?'warning':''">{{ batchId }}</el-tag>
-        <span style="margin-left:8px;font-weight:normal;font-size:13px;color:#909399;">{{ batchVideos.length }} 个视频</span>
+        <span style="margin-left:8px;font-weight:normal;font-size:13px;color:var(--el-text-color-secondary);">{{ batchVideos.length }} 个视频</span>
+        <el-button v-if="batchId!=='导入'&&batchId!=='root'" size="small" link type="primary" style="margin-left:12px;" @click="downloadBatch(batchId)">
+          <el-icon><Download></Download></el-icon> 打包下载
+        </el-button>
       </h4>
       <div class="video-grid">
         <el-card v-for="v in batchVideos" :key="v.path" shadow="hover" class="video-card">
           <video :src="'/api/videos/'+v.path" controls preload="metadata"></video>
           <div class="info">
-            <div style="font-weight:600;color:#303133;">{{ v.filename }}</div>
+            <div style="font-weight:600;color:var(--el-text-color-primary);">{{ v.filename }}</div>
             <div>{{ v.size_mb }} MB · {{ v.kind==='imported'?'导入':'生成' }}</div>
-            <div v-if="v.dialogue" style="color:#909399;" :title="v.dialogue">{{ v.dialogue.slice(0,40) }}{{ v.dialogue.length>40?'...':'' }}</div>
+            <div v-if="v.dialogue" style="color:var(--el-text-color-secondary);" :title="v.dialogue">{{ v.dialogue.slice(0,40) }}{{ v.dialogue.length>40?'...':'' }}</div>
             <el-button v-if="v.kind==='imported'" size="small" type="danger" link style="margin-top:4px;" @click="deleteVideo(v.path)">删除</el-button>
           </div>
         </el-card>
@@ -285,35 +433,39 @@
       <template #header>多视频合并</template>
       <div class="split-pane">
         <div class="pane">
-          <div style="font-weight:600;margin-bottom:8px;font-size:13px;color:#606266;">① 选择视频（按选择顺序合并）</div>
+          <div style="font-weight:600;margin-bottom:8px;font-size:13px;color:var(--el-text-color-regular);">① 选择视频（按选择顺序合并）</div>
           <div class="pane-list">
-            <div v-for="v in videosList" :key="v.path" class="video-item" style="cursor:pointer;"
-                 :style="isMergeSel(v.path)?'border-color:#409eff;background:#ecf5ff':''" @click="toggleMerge(v)">
-              <video :src="'/api/videos/'+v.path" preload="metadata"></video>
+            <div v-for="v in videosList" :key="v.path" class="video-item" role="button" tabindex="0" aria-label="选择 {{ v.filename }}"
+                 :style="isMergeSel(v.path)?'border-color:#EC4899;background:rgba(236,72,153,.08)':''"
+                 @click="toggleMerge(v)" @keydown.enter.prevent="toggleMerge(v)" @keydown.space.prevent="toggleMerge(v)">
+              <div class="thumb-wrap">
+                <video :src="'/api/videos/'+v.path" preload="metadata" @click.stop="openPreview(v)"></video>
+                <button class="play-btn" aria-label="预览 {{ v.filename }}" @click.stop="openPreview(v)"><el-icon><video-play></video-play></el-icon></button>
+              </div>
               <div style="flex:1;min-width:0;">
                 <div class="vname">{{ v.filename }}</div>
                 <div class="vmeta">{{ v.kind==='imported'?'导入':'生成' }} · {{ v.size_mb }} MB</div>
                 <el-tag size="small" v-if="isMergeSel(v.path)" type="primary">已选</el-tag>
               </div>
             </div>
-            <el-empty v-if="!videosList.length" description="镜头库为空" :image-size="80"/>
+            <el-empty v-if="!videosList.length" description="镜头库为空" :image-size="80"></el-empty>
           </div>
         </div>
         <div class="pane">
-          <div style="font-weight:600;margin-bottom:8px;font-size:13px;color:#606266;">② 合并顺序（{{ mergeSel.length }} 个）</div>
+          <div style="font-weight:600;margin-bottom:8px;font-size:13px;color:var(--el-text-color-regular);">② 合并顺序（{{ mergeSel.length }} 个）</div>
           <div class="pane-list">
             <div v-for="(v,i) in mergeSel" :key="v.path" class="order-item">
               <span class="idx">{{ i+1 }}</span>
               <div style="flex:1;min-width:0;font-size:13px;" :title="v.filename">{{ v.filename }}</div>
-              <el-button link size="small" :disabled="i===0" @click="mergeMove(i,-1)"><el-icon><Top/></el-icon></el-button>
-              <el-button link size="small" :disabled="i===mergeSel.length-1" @click="mergeMove(i,1)"><el-icon><Bottom/></el-icon></el-button>
-              <el-button link size="small" type="danger" @click="mergeRemove(i)"><el-icon><Close/></el-icon></el-button>
+              <el-button link size="small" :disabled="i===0" @click="mergeMove(i,-1)"><el-icon><Top></Top></el-icon></el-button>
+              <el-button link size="small" :disabled="i===mergeSel.length-1" @click="mergeMove(i,1)"><el-icon><Bottom></Bottom></el-icon></el-button>
+              <el-button link size="small" type="danger" @click="mergeRemove(i)"><el-icon><Close></Close></el-icon></el-button>
             </div>
-            <el-empty v-if="!mergeSel.length" description="尚未选择" :image-size="80"/>
+            <el-empty v-if="!mergeSel.length" description="尚未选择" :image-size="80"></el-empty>
           </div>
         </div>
       </div>
-      <el-divider/>
+      <el-divider></el-divider>
       <el-form :inline="true">
         <el-form-item label="模式">
           <el-radio-group v-model="mergeMode">
@@ -322,10 +474,10 @@
           </el-radio-group>
         </el-form-item>
         <el-form-item label="转场时长(s)" v-if="mergeMode==='transition'">
-          <el-input-number v-model="mergeDur" :min="0.1" :max="3" :step="0.1" size="small"/>
+          <el-input-number v-model="mergeDur" :min="0.1" :max="3" :step="0.1" size="small"></el-input-number>
         </el-form-item>
         <el-form-item label="输出名">
-          <el-input v-model="mergeName" placeholder="留空默认 merged" style="width:180px" size="default"/>
+          <el-input v-model="mergeName" placeholder="留空默认 merged" style="width:180px" size="default"></el-input>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :loading="mergeRunning" :disabled="mergeRunning||mergeSel.length<2" @click="runMerge">
@@ -345,21 +497,21 @@
   <div class="main-content" v-if="activeTab==='dub'">
     <el-card shadow="never" style="max-width:760px;">
       <template #header>视频配音 + 字幕</template>
-      <el-form label-width="100px">
+      <el-form :label-width="isNarrow?'84px':'100px'">
         <el-form-item label="选择视频">
           <el-select v-model="dubVideo" filterable style="width:100%;" placeholder="选择要配音的视频" @change="onDubVideoChange">
             <el-option v-for="v in videosList" :key="v.path" :value="v.path"
-                       :label="v.filename + (v.dialogue ? '（含台词）' : '')"/>
+                       :label="v.filename + (v.dialogue ? '（含台词）' : '')"></el-option>
           </el-select>
         </el-form-item>
         <el-form-item label="台词文本">
-          <el-input v-model="dubScript" type="textarea" :rows="6" placeholder="输入要配音的文字；选择生成的镜头会自动带出表格中的台词，可修改"/>
+          <el-input v-model="dubScript" type="textarea" :rows="6" placeholder="输入要配音的文字；选择生成的镜头会自动带出表格中的台词，可修改"></el-input>
         </el-form-item>
         <el-form-item label="音色">
-          <el-input v-model="dubVoice" placeholder="zh-CN-XiaoxiaoNeural"/>
+          <el-input v-model="dubVoice" placeholder="zh-CN-XiaoxiaoNeural"></el-input>
         </el-form-item>
         <el-form-item label="语速">
-          <el-input v-model="dubRate" placeholder="+0%"/>
+          <el-input v-model="dubRate" placeholder="+0%"></el-input>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :loading="dubRunning" :disabled="dubRunning||!dubVideo||!dubScript.trim()" @click="runDub">
@@ -378,113 +530,137 @@
   <!-- ═══════════════ 设置 ═══════════════ -->
   <div class="main-content" v-if="activeTab==='settings'">
     <div v-if="cfgLoading" style="text-align:center;padding:80px 0;">
-      <el-icon :size="32" class="is-loading"><Loading/></el-icon>
-      <p style="margin-top:12px;color:#909399;">加载配置中...</p>
+      <el-icon :size="32" class="is-loading"><Loading></Loading></el-icon>
+      <p style="margin-top:12px;color:var(--el-text-color-secondary);">加载配置中...</p>
     </div>
     <div v-else>
       <el-collapse v-model="openPanels" class="config-collapse">
 
         <el-collapse-item name="models">
-          <template #title><el-icon><Connection/></el-icon>&nbsp; 模型与 API</template>
-          <el-form label-width="140px" class="config-form">
+          <template #title><el-icon><Connection></Connection></el-icon>&nbsp; 模型与 API</template>
+          <el-form :label-width="isNarrow?'96px':'140px'" class="config-form">
             <div class="group-title">即梦 API</div>
-            <el-form-item label="API Key"><el-input v-model="cfg.api.jimeng.api_key" show-password/></el-form-item>
-            <el-form-item label="Key 名称"><el-input v-model="cfg.api.jimeng.key_name"/></el-form-item>
+            <el-form-item label="API Key"><el-input v-model="cfg.api.jimeng.api_key" show-password></el-input></el-form-item>
+            <el-form-item label="Key 名称"><el-input v-model="cfg.api.jimeng.key_name"></el-input></el-form-item>
             <div class="group-title">LLM</div>
-            <el-form-item label="API URL"><el-input v-model="cfg.llm.api_url"/></el-form-item>
-            <el-form-item label="API Key"><el-input v-model="cfg.llm.api_key" show-password/></el-form-item>
-            <el-form-item label="模型"><el-input v-model="cfg.llm.model"/></el-form-item>
-            <el-form-item label="Max Tokens"><el-input-number v-model="cfg.llm.max_tokens" :min="100" :max="8000" :step="100"/></el-form-item>
-            <el-form-item label="Temperature"><el-slider v-model="cfg.llm.temperature" :min="0" :max="2" :step="0.1" show-input style="max-width:400px"/></el-form-item>
+            <el-form-item label="启用 LLM"><el-switch v-model="cfg.llm.enabled"></el-switch></el-form-item>
+            <el-form-item label="API URL"><el-input v-model="cfg.llm.api_url"></el-input></el-form-item>
+            <el-form-item label="API Key"><el-input v-model="cfg.llm.api_key" show-password></el-input></el-form-item>
+            <el-form-item label="模型"><el-input v-model="cfg.llm.model"></el-input></el-form-item>
+            <el-form-item label="Max Tokens"><el-input-number v-model="cfg.llm.max_tokens" :min="100" :max="8000" :step="100"></el-input-number></el-form-item>
+            <el-form-item label="Temperature"><el-slider v-model="cfg.llm.temperature" :min="0" :max="2" :step="0.1" show-input style="max-width:400px"></el-slider></el-form-item>
+            <el-form-item label="超时(秒)"><el-input-number v-model="cfg.llm.timeout" :min="5" :max="300"></el-input-number></el-form-item>
             <div class="group-title">Seedance</div>
-            <el-form-item label="模型版本"><el-input v-model="cfg.seedance.model_version"/></el-form-item>
-            <el-form-item label="分辨率"><el-select v-model="cfg.seedance.resolution"><el-option label="720p" value="720p"/><el-option label="1080p" value="1080p"/></el-select></el-form-item>
-            <el-form-item label="宽高比"><el-select v-model="cfg.seedance.aspect_ratio"><el-option label="adaptive" value="adaptive"/><el-option label="16:9" value="16:9"/><el-option label="9:16" value="9:16"/><el-option label="1:1" value="1:1"/></el-select></el-form-item>
-            <el-form-item label="默认时长"><el-input-number v-model="cfg.seedance.default_duration" :min="2" :max="20"/></el-form-item>
-            <el-form-item label="默认种子"><el-input-number v-model="cfg.seedance.default_seed" :min="0"/></el-form-item>
-            <el-form-item label="生成音频"><el-switch v-model="cfg.seedance.generate_audio"/></el-form-item>
-            <el-form-item label="随机种子"><el-switch v-model="cfg.seedance.enable_random_seed"/></el-form-item>
+            <el-form-item label="模型版本"><el-input v-model="cfg.seedance.model_version"></el-input></el-form-item>
+            <el-form-item label="分辨率"><el-select v-model="cfg.seedance.resolution"><el-option label="720p" value="720p"></el-option><el-option label="1080p" value="1080p"></el-option></el-select></el-form-item>
+            <el-form-item label="宽高比"><el-select v-model="cfg.seedance.aspect_ratio"><el-option label="adaptive" value="adaptive"></el-option><el-option label="16:9" value="16:9"></el-option><el-option label="9:16" value="9:16"></el-option><el-option label="1:1" value="1:1"></el-option></el-select></el-form-item>
+            <el-form-item label="默认时长"><el-input-number v-model="cfg.seedance.default_duration" :min="2" :max="20"></el-input-number></el-form-item>
+            <el-form-item label="默认种子"><el-input-number v-model="cfg.seedance.default_seed" :min="0"></el-input-number></el-form-item>
+            <el-form-item label="生成音频"><el-switch v-model="cfg.seedance.generate_audio"></el-switch></el-form-item>
+            <el-form-item label="随机种子"><el-switch v-model="cfg.seedance.enable_random_seed"></el-switch></el-form-item>
           </el-form>
         </el-collapse-item>
 
         <el-collapse-item name="media">
-          <template #title><el-icon><VideoCamera/></el-icon>&nbsp; 视频与音频</template>
-          <el-form label-width="140px" class="config-form">
+          <template #title><el-icon><video-camera></video-camera></el-icon>&nbsp; 视频与音频</template>
+          <el-form :label-width="isNarrow?'96px':'140px'" class="config-form">
             <div class="group-title">视频</div>
-            <el-form-item label="帧率"><el-input-number v-model="cfg.video.fps" :min="1" :max="60"/></el-form-item>
-            <el-form-item label="宽"><el-input-number v-model="cfg.video.width" :min="128" :max="3840" :step="16"/></el-form-item>
-            <el-form-item label="高"><el-input-number v-model="cfg.video.height" :min="128" :max="3840" :step="16"/></el-form-item>
-            <el-form-item label="编码器"><el-select v-model="cfg.video.codec"><el-option label="libx264" value="libx264"/><el-option label="libx265" value="libx265"/></el-select></el-form-item>
-            <el-form-item label="CRF"><el-input-number v-model="cfg.video.crf" :min="0" :max="51"/></el-form-item>
-            <el-form-item label="像素格式"><el-select v-model="cfg.video.pix_fmt"><el-option label="yuv420p" value="yuv420p"/></el-select></el-form-item>
+            <el-form-item label="帧率"><el-input-number v-model="cfg.video.fps" :min="1" :max="60"></el-input-number></el-form-item>
+            <el-form-item label="宽"><el-input-number v-model="cfg.video.width" :min="128" :max="3840" :step="16"></el-input-number></el-form-item>
+            <el-form-item label="高"><el-input-number v-model="cfg.video.height" :min="128" :max="3840" :step="16"></el-input-number></el-form-item>
+            <el-form-item label="编码器"><el-select v-model="cfg.video.codec"><el-option label="libx264" value="libx264"></el-option><el-option label="libx265" value="libx265"></el-option></el-select></el-form-item>
+            <el-form-item label="CRF"><el-input-number v-model="cfg.video.crf" :min="0" :max="51"></el-input-number></el-form-item>
+            <el-form-item label="像素格式"><el-select v-model="cfg.video.pix_fmt"><el-option label="yuv420p" value="yuv420p"></el-option></el-select></el-form-item>
             <div class="group-title">FFmpeg</div>
-            <el-form-item label="CRF"><el-input-number v-model="cfg.ffmpeg.crf" :min="0" :max="51"/></el-form-item>
-            <el-form-item label="编码器"><el-select v-model="cfg.ffmpeg.codec"><el-option label="libx264" value="libx264"/><el-option label="libx265" value="libx265"/></el-select></el-form-item>
-            <el-form-item label="Profile"><el-select v-model="cfg.ffmpeg.profile"><el-option label="main" value="main"/><el-option label="high" value="high"/></el-select></el-form-item>
-            <el-form-item label="字体"><el-input v-model="cfg.ffmpeg.font"/></el-form-item>
-            <el-form-item label="字号"><el-input-number v-model="cfg.ffmpeg.font_size" :min="12" :max="120"/></el-form-item>
-            <el-form-item label="音频编码"><el-select v-model="cfg.ffmpeg.audio_codec"><el-option label="aac" value="aac"/><el-option label="mp3" value="mp3"/></el-select></el-form-item>
-            <el-form-item label="音频码率"><el-input v-model="cfg.ffmpeg.audio_bitrate"/></el-form-item>
+            <el-form-item label="CRF"><el-input-number v-model="cfg.ffmpeg.crf" :min="0" :max="51"></el-input-number></el-form-item>
+            <el-form-item label="编码器"><el-select v-model="cfg.ffmpeg.codec"><el-option label="libx264" value="libx264"></el-option><el-option label="libx265" value="libx265"></el-option></el-select></el-form-item>
+            <el-form-item label="Profile"><el-select v-model="cfg.ffmpeg.profile"><el-option label="main" value="main"></el-option><el-option label="high" value="high"></el-option></el-select></el-form-item>
+            <el-form-item label="字体"><el-input v-model="cfg.ffmpeg.font"></el-input></el-form-item>
+            <el-form-item label="字号"><el-input-number v-model="cfg.ffmpeg.font_size" :min="12" :max="120"></el-input-number></el-form-item>
+            <div class="group-title">字幕样式</div>
+            <el-form-item label="字体颜色"><el-input v-model="cfg.ffmpeg.subtitle.font_color" placeholder="FFFFFF"></el-input></el-form-item>
+            <el-form-item label="描边颜色"><el-input v-model="cfg.ffmpeg.subtitle.outline_color" placeholder="000000"></el-input></el-form-item>
+            <el-form-item label="描边宽度"><el-input-number v-model="cfg.ffmpeg.subtitle.outline_width" :min="0" :max="10"></el-input-number></el-form-item>
+            <el-form-item label="对齐方式">
+              <el-select v-model="cfg.ffmpeg.subtitle.alignment" style="width:160px">
+                <el-option label="底部居中" value="2"></el-option><el-option label="底部左" value="1"></el-option><el-option label="底部右" value="3"></el-option>
+                <el-option label="顶部居中" value="8"></el-option><el-option label="中间居中" value="5"></el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item label="底部边距"><el-input-number v-model="cfg.ffmpeg.subtitle.margin_v" :min="0" :max="500"></el-input-number></el-form-item>
+            <el-form-item label="阴影"><el-input-number v-model="cfg.ffmpeg.subtitle.shadow" :min="0" :max="10"></el-input-number></el-form-item>
+            <el-form-item label="音频编码"><el-select v-model="cfg.ffmpeg.audio_codec"><el-option label="aac" value="aac"></el-option><el-option label="mp3" value="mp3"></el-option></el-select></el-form-item>
+            <el-form-item label="音频码率"><el-input v-model="cfg.ffmpeg.audio_bitrate"></el-input></el-form-item>
             <div class="group-title">TTS</div>
-            <el-form-item label="语音"><el-input v-model="cfg.tts.voice"/></el-form-item>
-            <el-form-item label="语速"><el-input v-model="cfg.tts.rate"/></el-form-item>
+            <el-form-item label="语音"><el-input v-model="cfg.tts.voice"></el-input></el-form-item>
+            <el-form-item label="语速"><el-input v-model="cfg.tts.rate"></el-input></el-form-item>
             <div class="group-title">合并</div>
-            <el-form-item label="转场"><el-select v-model="cfg.merge.transition"><el-option label="fade" value="fade"/><el-option label="none" value="none"/></el-select></el-form-item>
-            <el-form-item label="转场时长"><el-input-number v-model="cfg.merge.transition_duration" :min="0" :max="5" :step="0.1"/></el-form-item>
-            <el-form-item label="文件名前缀"><el-input v-model="cfg.merge.filename_prefix"/></el-form-item>
-            <el-form-item label="采样率"><el-input-number v-model="cfg.merge.silent_sample_rate" :min="8000" :max="96000" :step="1000"/></el-form-item>
-            <el-form-item label="音频阈值"><el-input-number v-model="cfg.merge.audio_threshold"/></el-form-item>
-            <el-form-item label="字幕阈值"><el-input-number v-model="cfg.merge.srt_threshold"/></el-form-item>
-            <el-form-item label="字幕默认时长"><el-input-number v-model="cfg.merge.srt_default_duration" :min="1" :max="30"/></el-form-item>
-            <el-form-item label="输出文件名"><el-input v-model="cfg.merge.output_filename"/></el-form-item>
+            <el-form-item label="转场"><el-select v-model="cfg.merge.transition"><el-option label="fade" value="fade"></el-option><el-option label="none" value="none"></el-option></el-select></el-form-item>
+            <el-form-item label="转场时长"><el-input-number v-model="cfg.merge.transition_duration" :min="0" :max="5" :step="0.1"></el-input-number></el-form-item>
+            <el-form-item label="配音模式">
+              <el-select v-model="cfg.merge.tts_mode" style="width:200px">
+                <el-option label="整批统一配音" value="whole"></el-option>
+                <el-option label="逐镜头配音" value="per_shot"></el-option>
+                <el-option label="不配音" value="none"></el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item label="文件名前缀"><el-input v-model="cfg.merge.filename_prefix"></el-input></el-form-item>
+            <el-form-item label="采样率"><el-input-number v-model="cfg.merge.silent_sample_rate" :min="8000" :max="96000" :step="1000"></el-input-number></el-form-item>
+            <el-form-item label="音频阈值"><el-input-number v-model="cfg.merge.audio_threshold"></el-input-number></el-form-item>
+            <el-form-item label="字幕阈值"><el-input-number v-model="cfg.merge.srt_threshold"></el-input-number></el-form-item>
+            <el-form-item label="字幕默认时长"><el-input-number v-model="cfg.merge.srt_default_duration" :min="1" :max="30"></el-input-number></el-form-item>
+            <el-form-item label="输出文件名"><el-input v-model="cfg.merge.output_filename"></el-input></el-form-item>
           </el-form>
         </el-collapse-item>
 
         <el-collapse-item name="paths">
-          <template #title><el-icon><FolderOpened/></el-icon>&nbsp; 目录与任务</template>
-          <el-form label-width="140px" class="config-form">
+          <template #title><el-icon><folder-opened></folder-opened></el-icon>&nbsp; 目录与任务</template>
+          <el-form :label-width="isNarrow?'96px':'140px'" class="config-form">
             <div class="group-title">输出目录</div>
-            <el-form-item label="基础目录"><el-input v-model="cfg.output.base_dir"/></el-form-item>
-            <el-form-item label="镜头"><el-input v-model="cfg.output.shots_dir"/></el-form-item>
-            <el-form-item label="音频"><el-input v-model="cfg.output.audio_dir"/></el-form-item>
-            <el-form-item label="字幕"><el-input v-model="cfg.output.subs_dir"/></el-form-item>
-            <el-form-item label="合并"><el-input v-model="cfg.output.merged_dir"/></el-form-item>
-            <el-form-item label="最终"><el-input v-model="cfg.output.final_dir"/></el-form-item>
+            <el-form-item label="基础目录"><el-input v-model="cfg.output.base_dir"></el-input></el-form-item>
+            <el-form-item label="镜头"><el-input v-model="cfg.output.shots_dir"></el-input></el-form-item>
+            <el-form-item label="音频"><el-input v-model="cfg.output.audio_dir"></el-input></el-form-item>
+            <el-form-item label="字幕"><el-input v-model="cfg.output.subs_dir"></el-input></el-form-item>
+            <el-form-item label="合并"><el-input v-model="cfg.output.merged_dir"></el-input></el-form-item>
+            <el-form-item label="最终"><el-input v-model="cfg.output.final_dir"></el-input></el-form-item>
             <div class="group-title">任务</div>
-            <el-form-item label="批次前缀"><el-input v-model="cfg.task.batch_prefix"/></el-form-item>
-            <el-form-item label="镜头前缀"><el-input v-model="cfg.task.shot_prefix"/></el-form-item>
-            <el-form-item label="ID 格式"><el-input v-model="cfg.task.id_format"/></el-form-item>
+            <el-form-item label="批次前缀"><el-input v-model="cfg.task.batch_prefix"></el-input></el-form-item>
+            <el-form-item label="镜头前缀"><el-input v-model="cfg.task.shot_prefix"></el-input></el-form-item>
+            <el-form-item label="ID 格式"><el-input v-model="cfg.task.id_format"></el-input></el-form-item>
             <div class="group-title">输入默认值</div>
-            <el-form-item label="默认时长"><el-input-number v-model="cfg.input.default_duration" :min="1" :max="20"/></el-form-item>
-            <el-form-item label="素材类型"><el-select v-model="cfg.input.default_asset_type"><el-option label="ai_generated" value="ai_generated"/><el-option label="stock" value="stock"/></el-select></el-form-item>
+            <el-form-item label="默认时长"><el-input-number v-model="cfg.input.default_duration" :min="1" :max="20"></el-input-number></el-form-item>
+            <el-form-item label="素材类型"><el-select v-model="cfg.input.default_asset_type"><el-option label="ai_generated" value="ai_generated"></el-option><el-option label="stock" value="stock"></el-option></el-select></el-form-item>
             <div class="group-title">日志</div>
-            <el-form-item label="级别"><el-select v-model="cfg.logging.level"><el-option label="DEBUG" value="DEBUG"/><el-option label="INFO" value="INFO"/><el-option label="WARNING" value="WARNING"/><el-option label="ERROR" value="ERROR"/></el-select></el-form-item>
-            <el-form-item label="目录"><el-input v-model="cfg.logging.dir"/></el-form-item>
+            <el-form-item label="级别"><el-select v-model="cfg.logging.level"><el-option label="DEBUG" value="DEBUG"></el-option><el-option label="INFO" value="INFO"></el-option><el-option label="WARNING" value="WARNING"></el-option><el-option label="ERROR" value="ERROR"></el-option></el-select></el-form-item>
+            <el-form-item label="目录"><el-input v-model="cfg.logging.dir"></el-input></el-form-item>
           </el-form>
         </el-collapse-item>
 
         <el-collapse-item name="agent">
-          <template #title><el-icon><MagicStick/></el-icon>&nbsp; Agent 行为</template>
-          <el-form label-width="140px" class="config-form">
-            <el-form-item label="摄像机"><el-input v-model="cfg.agent.camera"/></el-form-item>
-            <el-form-item label="风格"><el-input v-model="cfg.agent.style" type="textarea" :rows="2"/></el-form-item>
-            <el-form-item label="默认种子"><el-input-number v-model="cfg.agent.default_seed" :min="0"/></el-form-item>
-            <el-form-item label="文件名前缀"><el-input v-model="cfg.agent.filename_prefix"/></el-form-item>
-            <el-form-item label="默认时长"><el-input-number v-model="cfg.agent.default_duration" :min="1" :max="20"/></el-form-item>
-            <el-form-item label="最大重试"><el-input-number v-model="cfg.agent.max_retries" :min="0" :max="10"/></el-form-item>
-            <el-form-item label="时长范围">
-              <el-input-number v-model="cfg.agent.duration_range[0]" :min="1" size="small" style="width:100px"/>
-              <span style="margin:0 8px">~</span>
-              <el-input-number v-model="cfg.agent.duration_range[1]" :max="60" size="small" style="width:100px"/>
+          <template #title><el-icon><magic-stick></magic-stick></el-icon>&nbsp; Agent 行为</template>
+          <el-form :label-width="isNarrow?'96px':'140px'" class="config-form">
+            <el-form-item label="摄像机"><el-input v-model="cfg.agent.camera"></el-input></el-form-item>
+            <el-form-item label="风格"><el-input v-model="cfg.agent.style" type="textarea" :rows="2"></el-input></el-form-item>
+            <el-form-item label="关键词映射">
+              <textarea class="yaml-editor" v-model="kwMapText" rows="6" placeholder="每行一个「关键词: 提示词」&#10;例如：&#10;夜晚: 夜色朦胧的城市街景&#10;海边: 阳光下的海浪拍岸"></textarea>
             </el-form-item>
-            <el-form-item label="Prompt 最短"><el-input-number v-model="cfg.agent.prompt_min_length" :min="1"/></el-form-item>
-            <el-form-item label="短 Prompt 时长"><el-input-number v-model="cfg.agent.prompt_short_duration" :min="1"/></el-form-item>
-            <el-form-item label="长 Prompt 时长"><el-input-number v-model="cfg.agent.prompt_long_duration" :min="1"/></el-form-item>
+            <el-form-item label="默认种子"><el-input-number v-model="cfg.agent.default_seed" :min="0"></el-input-number></el-form-item>
+            <el-form-item label="文件名前缀"><el-input v-model="cfg.agent.filename_prefix"></el-input></el-form-item>
+            <el-form-item label="默认时长"><el-input-number v-model="cfg.agent.default_duration" :min="1" :max="20"></el-input-number></el-form-item>
+            <el-form-item label="最大重试"><el-input-number v-model="cfg.agent.max_retries" :min="0" :max="10"></el-input-number></el-form-item>
+            <el-form-item label="时长范围">
+              <el-input-number v-model="cfg.agent.duration_range[0]" :min="1" size="small" style="width:100px"></el-input-number>
+              <span style="margin:0 8px">~</span>
+              <el-input-number v-model="cfg.agent.duration_range[1]" :max="60" size="small" style="width:100px"></el-input-number>
+            </el-form-item>
+            <el-form-item label="Prompt 最短"><el-input-number v-model="cfg.agent.prompt_min_length" :min="1"></el-input-number></el-form-item>
+            <el-form-item label="短 Prompt 时长"><el-input-number v-model="cfg.agent.prompt_short_duration" :min="1"></el-input-number></el-form-item>
+            <el-form-item label="长 Prompt 时长"><el-input-number v-model="cfg.agent.prompt_long_duration" :min="1"></el-input-number></el-form-item>
           </el-form>
         </el-collapse-item>
 
         <el-collapse-item name="templates">
-          <template #title><el-icon><Document/></el-icon>&nbsp; 模板管理</template>
+          <template #title><el-icon><Document></Document></el-icon>&nbsp; 模板管理</template>
           <div v-for="tpl in templates" :key="tpl.id" class="template-card">
             <el-card shadow="never">
               <template #header>
@@ -500,15 +676,15 @@
               <el-button size="small" @click="viewTpl(tpl.id)">查看 JSON</el-button>
             </el-card>
           </div>
-          <el-upload action="/api/templates/import" :on-success="onTplImported" :show-file-list="false" accept=".json" style="margin-top:12px;">
-            <el-button type="primary" plain><el-icon><Upload/></el-icon> 导入模板</el-button>
+          <el-upload action="/api/templates/import" :on-success="onTplImported" :on-error="onUploadError" :show-file-list="false" accept=".json" style="margin-top:12px;">
+            <el-button type="primary" plain><el-icon><Upload></Upload></el-icon> 导入模板</el-button>
           </el-upload>
         </el-collapse-item>
       </el-collapse>
 
       <div class="action-bar">
-        <el-button @click="resetCfg" :loading="cfgResetting"><el-icon><RefreshLeft/></el-icon> 从备份恢复</el-button>
-        <el-button type="primary" @click="saveCfg" :loading="cfgSaving"><el-icon><Check/></el-icon> 保存配置</el-button>
+        <el-button @click="resetCfg" :loading="cfgResetting"><el-icon><refresh-left></refresh-left></el-icon> 从备份恢复</el-button>
+        <el-button type="primary" @click="saveCfg" :loading="cfgSaving"><el-icon><Check></Check></el-icon> 保存配置</el-button>
       </div>
     </div>
   </div>
@@ -517,12 +693,12 @@
   <div class="main-content" v-if="activeTab==='system'">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
       <h3>系统状态</h3>
-      <el-button @click="loadSystem" :loading="sysLoading"><el-icon><Refresh/></el-icon> 刷新</el-button>
+      <el-button @click="loadSystem" :loading="sysLoading"><el-icon><Refresh></Refresh></el-icon> 刷新</el-button>
     </div>
 
     <div class="stat-row">
       <div class="stat-item">
-        <div class="val" :style="{color:comfyOnline?'#67c23a':'#f56c6c'}">{{ comfyOnline?'在线':'离线' }}</div>
+        <div class="val" :style="{color:comfyOnline?'var(--el-color-success)':'var(--el-color-danger)'}">{{ comfyOnline?'在线':'离线' }}</div>
         <div class="label">ComfyUI</div>
       </div>
       <div class="stat-item" v-if="sysData.disk">
@@ -564,11 +740,14 @@
   </div>
 
   <!-- 弹窗 -->
-  <el-dialog v-model="tplDlg" title="模板详情" width="700px" top="5vh">
+  <el-dialog v-model="previewDlg" :title="previewVideo?.filename || '视频预览'" :width="isNarrow?'94vw':'760px'" top="5vh" destroy-on-close>
+    <video v-if="previewVideo" :src="'/api/videos/'+previewVideo.path" controls autoplay style="width:100%;max-height:65vh;border-radius:8px;background:#000;"></video>
+  </el-dialog>
+  <el-dialog v-model="tplDlg" title="模板详情" :width="isNarrow?'94vw':'700px'" top="5vh">
     <pre class="template-json">{{ tplDlgContent }}</pre>
   </el-dialog>
-  <el-dialog v-model="saveResultDlg" title="保存结果" width="400px">
-    <el-result :icon="saveResult.ok?'success':'error'" :title="saveResult.message" :sub-title="saveResult.backup?'备份: '+saveResult.backup:''"/>
+  <el-dialog v-model="saveResultDlg" title="保存结果" :width="isNarrow?'92vw':'400px'">
+    <el-result :icon="saveResult.ok?'success':'error'" :title="saveResult.message" :sub-title="saveResult.backup?'备份: '+saveResult.backup:''"></el-result>
   </el-dialog>
 </div>
 
@@ -577,6 +756,21 @@ const{createApp,ref,reactive,computed,onMounted}=Vue
 const app=createApp({
   setup(){
     const activeTab=ref('tables')
+    const isNarrow=ref(window.matchMedia('(max-width:900px)').matches)
+    window.matchMedia('(max-width:900px)').addEventListener('change',e=>isNarrow.value=e.matches)
+    const menuDlg=ref(false)
+    const menuItems=[
+      {index:'tables',label:'表格',icon:ElementPlusIconsVue.Notebook},
+      {index:'generate',label:'生成',icon:ElementPlusIconsVue.Lightning},
+      {index:'library',label:'镜头库',icon:ElementPlusIconsVue.Film},
+      {index:'merge',label:'合并',icon:ElementPlusIconsVue.CopyDocument},
+      {index:'dub',label:'配音字幕',icon:ElementPlusIconsVue.Microphone},
+      {index:'settings',label:'设置',icon:ElementPlusIconsVue.Setting},
+      {index:'system',label:'系统',icon:ElementPlusIconsVue.DataLine},
+    ]
+    const errMsg=e=>e?.response?.data?.detail||e?.message||'请求失败'
+    const toastError=(e,prefix='操作失败')=>ElementPlus.ElMessage.error(`${prefix}：${errMsg(e)}`)
+    const onUploadError=()=>ElementPlus.ElMessage.error('上传失败，请重试')
 
     // ── 表格 ──
     const tables=ref([]),curTable=ref(''),tableShots=ref([])
@@ -587,12 +781,12 @@ const app=createApp({
         tables.value=data
         if(!curTable.value||!data.find(t=>t.id===curTable.value))curTable.value=data[0]?.id||''
         if(curTable.value)loadShots()
-      }catch{}
+      }catch(e){toastError(e,'加载表格失败')}
     }
     const selectTable=id=>{curTable.value=id;loadShots()}
     const loadShots=async()=>{
       if(!curTable.value)return
-      try{const{data}=await axios.get(`/api/tables/${curTable.value}/shots`);tableShots.value=data}catch{}
+      try{const{data}=await axios.get(`/api/tables/${curTable.value}/shots`);tableShots.value=data}catch(e){toastError(e,'加载镜头失败')}
     }
     const createTable=async()=>{
       let name=''
@@ -600,7 +794,10 @@ const app=createApp({
       try{await axios.post('/api/tables',{name});loadTables();ElementPlus.ElMessage.success('已创建')}catch(e){ElementPlus.ElMessage.error(e.response?.data?.detail||'创建失败')}
     }
     const deleteTable=async id=>{try{await axios.delete(`/api/tables/${id}`);curTable.value='';loadTables();ElementPlus.ElMessage.success('已删除')}catch{ElementPlus.ElMessage.error('删除失败')}}
-    const openShotDialog=row=>{shotForm.value=row?{...row}:{duration:4,scene_desc:'',dialogue:'',screen_text:'',asset_type:'ai_generated',asset_path:''};shotDlg.value=true}
+    const assetImages=ref([])
+    const loadAssets=async()=>{try{const{data}=await axios.get('/api/assets/images');assetImages.value=data.images}catch(e){toastError(e,'加载素材失败')}}
+    const onAssetUploaded=res=>{ElementPlus.ElMessage.success(res.message||'上传成功');loadAssets()}
+    const openShotDialog=row=>{shotForm.value=row?{...row}:{duration:4,scene_desc:'',dialogue:'',screen_text:'',asset_type:'ai_generated',asset_path:''};loadAssets();shotDlg.value=true}
     const saveShot=async()=>{
       shotSaving.value=true
       try{
@@ -626,8 +823,7 @@ const app=createApp({
     const loadGenShots=async()=>{
       await loadTables()
       for(const t of tables.value){
-        if(genShots[t.id])continue
-        try{const{data}=await axios.get(`/api/tables/${t.id}/shots`);genShots[t.id]=data}catch{}
+        try{const{data}=await axios.get(`/api/tables/${t.id}/shots`);genShots[t.id]=data}catch(e){toastError(e,'加载镜头失败')}
       }
     }
     const toggleGen=(tid,sid,val)=>{
@@ -662,26 +858,38 @@ const app=createApp({
         }
       }catch{pipelineRunning.value=false}
     }
+    let logTotal=0
     const refreshLogs=async()=>{
       logsLoading.value=true
-      try{const{data}=await axios.get('/api/pipeline/logs');pipelineLogs.value=data.lines.join('\n')}catch{}
+      try{
+        const{data}=await axios.get('/api/pipeline/logs',{params:{tail:200}})
+        if(data.total<logTotal){pipelineLogs.value='';logTotal=0}
+        if(data.total>logTotal){
+          const add=data.lines.slice(Math.max(0,data.lines.length-(data.total-logTotal)))
+          pipelineLogs.value=(pipelineLogs.value?pipelineLogs.value+'\n':'')+add.join('\n')
+          logTotal=data.total
+        }
+      }catch(e){toastError(e,'加载日志失败')}
       logsLoading.value=false
     }
 
     // ── 镜头库 ──
     const videosList=ref([]),videoBatches=ref({})
     const loadVideos=async()=>{
-      try{const{data}=await axios.get('/api/videos');videosList.value=data.videos;videoBatches.value=data.batches}catch{}
+      try{const{data}=await axios.get('/api/videos');videosList.value=data.videos;videoBatches.value=data.batches}catch(e){toastError(e,'加载镜头库失败')}
     }
     const onVideoImported=res=>{ElementPlus.ElMessage.success(res.message||'导入成功');loadVideos()}
     const deleteVideo=async path=>{
       try{await ElementPlus.ElMessageBox.confirm('确认删除该视频？','确认',{type:'warning'})}catch{return}
       try{await axios.delete('/api/videos',{params:{path}});loadVideos();ElementPlus.ElMessage.success('已删除')}catch(e){ElementPlus.ElMessage.error(e.response?.data?.detail||'删除失败')}
     }
+    const downloadBatch=id=>window.open(`/api/batches/${id}/download`,'_blank')
 
     // ── 合并 ──
     const mergeSel=ref([]),mergeMode=ref('concat'),mergeDur=ref(0.5),mergeName=ref('')
     const mergeRunning=ref(false),mergeResult=ref('')
+    const previewDlg=ref(false),previewVideo=ref(null)
+    const openPreview=v=>{previewVideo.value=v;previewDlg.value=true}
     const isMergeSel=path=>mergeSel.value.some(v=>v.path===path)
     const toggleMerge=v=>{
       const i=mergeSel.value.findIndex(x=>x.path===v.path)
@@ -738,18 +946,23 @@ const app=createApp({
     const tplDlg=ref(false),tplDlgContent=ref('')
     const yamlize=obj=>Object.entries(obj||{}).map(([k,v])=>`${k}: ${v}`).join('\n')
     const parseYaml=text=>{const r={};text.split('\n').forEach(l=>{l=l.trim();if(!l||l.startsWith('#'))return;const i=l.indexOf(':');if(i>0)r[l.slice(0,i).trim()]=l.slice(i+1).trim()});return r}
-    const loadCfg=async()=>{cfgLoading.value=true;try{const{data}=await axios.get('/api/config');cfg.value=data;kwMapText.value=yamlize(data.agent?.keyword_map)}catch{};cfgLoading.value=false}
-    const loadTpls=async()=>{try{const{data}=await axios.get('/api/templates');templates.value=data}catch{}}
+    const loadCfg=async()=>{cfgLoading.value=true;try{const{data}=await axios.get('/api/config');cfg.value=data;
+      cfg.value.llm=cfg.value.llm||{};cfg.value.ffmpeg=cfg.value.ffmpeg||{};cfg.value.merge=cfg.value.merge||{};
+      if(cfg.value.ffmpeg.subtitle===undefined)cfg.value.ffmpeg.subtitle={}
+      if(cfg.value.merge.tts_mode===undefined)cfg.value.merge.tts_mode='whole'
+      if(cfg.value.llm.enabled===undefined)cfg.value.llm.enabled=true
+      kwMapText.value=yamlize(data.agent?.keyword_map)}catch(e){toastError(e,'加载配置失败')};cfgLoading.value=false}
+    const loadTpls=async()=>{try{const{data}=await axios.get('/api/templates');templates.value=data}catch(e){toastError(e,'加载模板失败')}}
     const saveCfg=async()=>{cfgSaving.value=true;try{cfg.value.agent.keyword_map=parseYaml(kwMapText.value);const{data}=await axios.put('/api/config',cfg.value);saveResult.value=data;saveResultDlg.value=true}catch{saveResult.value={ok:false,message:'保存失败'};saveResultDlg.value=true};cfgSaving.value=false}
     const resetCfg=async()=>{try{await ElementPlus.ElMessageBox.confirm('确定从备份恢复？','确认',{type:'warning'})}catch{return};cfgResetting.value=true;try{const{data}=await axios.post('/api/config/reset');cfg.value=data.config;kwMapText.value=yamlize(data.config.agent?.keyword_map);ElementPlus.ElMessage.success(data.message)}catch{ElementPlus.ElMessage.error('恢复失败')};cfgResetting.value=false}
-    const viewTpl=async id=>{try{const{data}=await axios.get(`/api/templates/${id}`);tplDlgContent.value=JSON.stringify(data,null,2);tplDlg.value=true}catch{}}
+    const viewTpl=async id=>{try{const{data}=await axios.get(`/api/templates/${id}`);tplDlgContent.value=JSON.stringify(data,null,2);tplDlg.value=true}catch(e){toastError(e,'加载模板失败')}}
     const onTplImported=res=>{ElementPlus.ElMessage.success(res.message||'导入成功');loadTpls()}
 
     // ── 系统 ──
     const sysData=ref({}),sysLoading=ref(false),comfyOnline=ref(false)
     const loadSystem=async()=>{
       sysLoading.value=true
-      try{const{data}=await axios.get('/api/system/status');sysData.value=data;comfyOnline.value=data.comfyui?.online||false}catch{}
+      try{const{data}=await axios.get('/api/system/status');sysData.value=data;comfyOnline.value=data.comfyui?.online||false}catch(e){toastError(e,'加载系统状态失败')}
       sysLoading.value=false
     }
 
@@ -760,19 +973,22 @@ const app=createApp({
       if(tab==='library')loadVideos()
       if(tab==='merge')loadVideos()
       if(tab==='dub')loadVideos()
+      if(tab==='settings'){loadCfg();loadTpls()}
       if(tab==='system')loadSystem()
     }
 
-    onMounted(()=>{loadTables();loadCfg();loadTpls();loadSystem();loadVideos()})
+    onMounted(()=>{loadTables();loadSystem()})
 
     return{
-      activeTab,switchTab,
+      activeTab,switchTab,isNarrow,menuDlg,menuItems,onUploadError,
       tables,curTable,tableShots,shotDlg,shotSaving,shotForm,
       loadTables,selectTable,createTable,deleteTable,openShotDialog,saveShot,deleteShot,onImportSuccess,exportShots,moveShot,
+      assetImages,loadAssets,onAssetUploaded,
       genShots,genSelected,genName,genTotal,loadGenShots,toggleGen,selectAllInTable,
       pipelineRunning,pipelineStatus,pipelineLogs,logsLoading,runGenerate,refreshLogs,
-      videosList,videoBatches,loadVideos,onVideoImported,deleteVideo,
+      videosList,videoBatches,loadVideos,onVideoImported,deleteVideo,downloadBatch,
       mergeSel,mergeMode,mergeDur,mergeName,mergeRunning,mergeResult,isMergeSel,toggleMerge,mergeMove,mergeRemove,runMerge,
+      previewDlg,previewVideo,openPreview,
       dubVideo,dubScript,dubVoice,dubRate,dubRunning,dubResult,onDubVideoChange,runDub,
       cfg,cfgLoading,cfgSaving,cfgResetting,templates,openPanels,kwMapText,saveResultDlg,saveResult,tplDlg,tplDlgContent,loadCfg,saveCfg,resetCfg,viewTpl,onTplImported,
       sysData,sysLoading,comfyOnline,loadSystem,

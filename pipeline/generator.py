@@ -10,6 +10,7 @@ from .registry import TemplateRegistry
 from .comfyui import ComfyUIClient
 from .log import get_logger
 from .messages import Msg
+from . import llm as llm_client
 
 log = get_logger("generator")
 
@@ -62,18 +63,86 @@ def _select(state: dict) -> dict:
             "asset_type": asset_type}
 
 
-def _optimize(state: dict) -> dict:
+def _workflow_class_types(wdata: dict) -> set:
+    """收集工作流中的所有 class_type（用于链式检测）"""
+    wf = wdata.get("workflow") if isinstance(wdata, dict) else None
+    if not isinstance(wf, dict):
+        return set()
+    return {n.get("class_type", "") for n in wf.values() if isinstance(n, dict)}
+
+
+def _is_chain_workflow(wdata: dict) -> bool:
+    """链式：同一工作流内同时含 JimengSeedream(图) + JimengSeedance(视频)"""
+    cts = _workflow_class_types(wdata)
+    return (any("JimengSeedream" in c for c in cts) and
+            any("JimengSeedance" in c for c in cts))
+
+
+async def _optimize_prompt(state: dict) -> dict:
+    """LLM 把画面内容翻译成英文 prompt；失败/未配置时回退静态拼接"""
     config = state.get("config", {})
     elements = state.get("key_elements", [])
     duration = state.get("duration", config.get("agent", {}).get("default_duration", 5))
-    desc_en = ", ".join(elements[:6]) if elements else "professional technology scene"
-    prompt = f"{desc_en}. {CAMERA}, {STYLE}."
+
+    desc = state.get("scene_desc", "")
+    dialogue = state.get("dialogue", "")
+    prompt = None
+    if llm_client.is_enabled(config):
+        prompt = await llm_client.translate_prompt(config, desc, dialogue, duration)
+        if prompt:
+            log.info(f"镜号 {state.get('id', '?')}: LLM prompt 生成完成")
+
+    if not prompt:
+        agent_cfg = config.get("agent", {}) or {}
+        camera = agent_cfg.get("camera", CAMERA) or "smooth slow camera push-in"
+        style = agent_cfg.get("style", STYLE) or "cinematic lighting, professional corporate atmosphere, modern clean design"
+        desc_en = ", ".join(elements[:6]) if elements else "professional technology scene"
+        prompt = f"{desc_en}. {camera}, {style}."
+
     if duration > config.get("agent", {}).get("prompt_long_duration", 8):
         prompt = prompt.rstrip(".") + ", slow paced, extended sequence."
     elif duration < config.get("agent", {}).get("prompt_short_duration", 4):
         prompt = prompt.rstrip(".") + ", quick dynamic, energetic pace."
     log.info(Msg.LG_OPTIMIZE.format(prompt=prompt[:55]))
-    return {**state, "optimized_prompt": prompt}
+
+    result = {**state, "optimized_prompt": prompt}
+
+    # 链式工作流（Seedream 出图 → Seedance 动画化）额外生成动作 prompt
+    if _is_chain_workflow(state.get("workflow_data") or {}):
+        agent_cfg = config.get("agent", {}) or {}
+        camera = agent_cfg.get("camera", CAMERA) or "smooth slow camera push-in"
+        motion = f"{camera}, subtle cinematic motion, natural gentle movement."
+        if duration > config.get("agent", {}).get("prompt_long_duration", 8):
+            motion = motion.rstrip(".") + ", slow paced, extended sequence."
+        elif duration < config.get("agent", {}).get("prompt_short_duration", 4):
+            motion = motion.rstrip(".") + ", quick dynamic, energetic pace."
+        result["motion_prompt"] = motion
+        log.info(f"镜号 {state.get('id', '?')}: 链式工作流，生成 motion_prompt: {motion[:55]}")
+    return result
+
+
+async def _polish(state: dict) -> dict:
+    """LLM 润色台词 + 补全屏幕字幕（失败则保持原值）"""
+    config = state.get("config", {})
+    if not llm_client.is_enabled(config):
+        return state
+
+    dialogue = state.get("dialogue", "") or ""
+    screen_text = state.get("screen_text", "") or ""
+    new_dialogue, new_screen_text = dialogue, screen_text
+
+    if dialogue.strip():
+        polished = await llm_client.polish_dialogue(config, dialogue)
+        if polished:
+            new_dialogue = polished
+    if not screen_text.strip() and (dialogue.strip() or state.get("scene_desc", "")):
+        suggested = await llm_client.suggest_screen_text(config, state.get("scene_desc", ""), dialogue)
+        if suggested:
+            new_screen_text = suggested
+
+    if new_dialogue != dialogue or new_screen_text != screen_text:
+        log.info(f"镜号 {state.get('id', '?')}: 台词/字幕已润色")
+    return {**state, "dialogue": new_dialogue, "screen_text": new_screen_text}
 
 
 def _validate(state: dict) -> dict:
@@ -113,22 +182,25 @@ async def _submit(state: dict) -> dict:
     import json as _json
     wf = _json.loads(_json.dumps(wf))
     optimized = state.get("optimized_prompt", "")
+    motion = state.get("motion_prompt", "")
+    is_chain = _is_chain_workflow(wf_data) or bool(motion)
     config = state.get("config", {})
     duration = state.get("duration", config.get("agent", {}).get("default_duration", 5))
+    batch_id = config.get("_batch_id", "")
+    prefix = f"{batch_id}_shot_{sid}" if batch_id else f"shot_{sid}"
     for nid, info in wf.items():
         if not info:
             continue
         ct = info.get("class_type", "")
-        if "JimengSeedance" in ct:
+        if "JimengSeedream" in ct:
             info["inputs"]["prompt"] = optimized
+            info["inputs"]["seed"] = config.get("agent", {}).get("default_seed", 42)
+        elif "JimengSeedance" in ct:
+            info["inputs"]["prompt"] = motion if is_chain else optimized
             info["inputs"]["duration"] = duration
             info["inputs"]["seed"] = config.get("agent", {}).get("default_seed", 42)
-            batch_id = config.get("_batch_id", "")
-            prefix = f"{batch_id}_shot_{sid}" if batch_id else f"shot_{sid}"
             info["inputs"]["filename_prefix"] = prefix
-        if ct == "SaveVideo":
-            batch_id = config.get("_batch_id", "")
-            prefix = f"{batch_id}_shot_{sid}" if batch_id else f"shot_{sid}"
+        if ct in ("SaveVideo", "SaveImage"):
             info["inputs"]["filename_prefix"] = prefix
     asset_path = state.get("asset_path", "")
     asset_type = state.get("asset_type", "")
@@ -206,11 +278,12 @@ async def generate_shot(shot: dict, config: dict, registry: TemplateRegistry = N
     log.info(f"── 镜号 {state['id']} ──")
 
     state = _analyze(state)
+    state = await _polish(state)
 
     # validate 失败重试循环（等价 route_after_validate：回退到 select，最多 max_retries 次）
     for _ in range(state["max_retries"] + 1):
         state = _select(state)
-        state = _optimize(state)
+        state = await _optimize_prompt(state)
         state = _validate(state)
         if state.get("status") == "validated":
             break

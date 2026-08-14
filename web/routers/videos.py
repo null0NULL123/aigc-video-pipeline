@@ -4,15 +4,19 @@
 - POST  /api/videos/import        上传导入现有视频
 - DELETE /api/videos?path=...     删除导入的视频
 - GET   /api/videos/{path:path}   视频文件流（支持 Range 请求）
+- GET   /api/batches/{id}/download 批次产物打包下载（Zip）
 """
 import json
+import os
 import re
 import shutil
+import tempfile
 import time
+import zipfile
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from web import settings
 
@@ -98,6 +102,44 @@ async def delete_video(path: str):
         raise HTTPException(404, f"视频不存在: {path}")
     file_path.unlink()
     return {"ok": True, "message": f"已删除 {file_path.name}"}
+
+
+@router.get("/batches/{batch_id}/download")
+async def download_batch(batch_id: str):
+    """打包下载批次产物（shots/audio/subs/merged/final 全部文件）"""
+    batch_dir = settings.OUTPUT_DIR / batch_id
+    if not batch_dir.is_dir():
+        raise HTTPException(404, f"批次不存在: {batch_id}")
+
+    files = [f for f in sorted(batch_dir.rglob("*")) if f.is_file()]
+    if not files:
+        raise HTTPException(404, f"批次 {batch_id} 为空")
+
+    fd, tmp_path = tempfile.mkstemp(suffix=".zip", prefix=f"{batch_id}_")
+    os.close(fd)
+    with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for f in files:
+            arc = f"{batch_id}/{f.relative_to(batch_dir).as_posix()}"
+            zf.write(f, arcname=arc)
+
+    return FileResponse(
+        tmp_path,
+        media_type="application/zip",
+        filename=f"{batch_id}.zip",
+        background=_cleanup(tmp_path),
+    )
+
+
+def _cleanup(path: str):
+    from starlette.background import BackgroundTask
+
+    def _rm():
+        try:
+            Path(path).unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    return BackgroundTask(_rm)
 
 
 @router.get("/videos/{path:path}")

@@ -34,6 +34,7 @@ def workdir(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "TABLES_FILE", tmp_path / "input" / "tables.json")
     monkeypatch.setattr(settings, "OUTPUT_DIR", tmp_path / "output")
     monkeypatch.setattr(settings, "IMPORTED_DIR", tmp_path / "output" / "imported")
+    monkeypatch.setattr(settings, "ASSETS_DIR", tmp_path / "output" / "assets" / "images")
     monkeypatch.setattr(settings, "PIPELINE_CWD", tmp_path)
     (tmp_path / "input").mkdir()
     return tmp_path

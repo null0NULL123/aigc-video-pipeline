@@ -1,0 +1,84 @@
+{
+  "id": "seedream_t2i",
+  "name": "Seedream T2I (文字→图片)",
+  "description": "Seedream 4.0 文生图，输出 PNG 图片（SaveImage 导出）",
+  "category": "t2i",
+  "match_rules": {
+    "asset_type": [
+      "ai_generated",
+      "none",
+      ""
+    ],
+    "keywords": [
+      "图片",
+      "海报",
+      "封面",
+      "插图",
+      "背景"
+    ]
+  },
+  "usage": {
+    "required_params": [
+      "prompt"
+    ],
+    "optional_params": [
+      "seed",
+      "size"
+    ],
+    "output": "image",
+    "note": "prompt: 英文描述; 输出单张 PNG"
+  },
+  "workflow": {
+    "1": {
+      "class_type": "JimengSeedream4",
+      "inputs": {
+        "client": [
+          "2",
+          0
+        ],
+        "model_version": "{{seedream.model_version}}",
+        "prompt": "prompt placeholder",
+        "size": "{{seedream.size}}",
+        "width": "{{seedream.width}}",
+        "height": "{{seedream.height}}",
+        "seed": "{{seedream.default_seed}}",
+        "enable_group_generation": false,
+        "max_images": "{{seedream.max_images}}",
+        "generation_count": 1,
+        "watermark": "{{seedream.watermark}}",
+        "images": {}
+      }
+    },
+    "2": {
+      "class_type": "JimengAPIClient",
+      "inputs": {
+        "new_api_key": "{{api.jimeng.api_key}}",
+        "new_key_name": "",
+        "key_name": "{{api.jimeng.key_name}}"
+      }
+    },
+    "3": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1",
+          0
+        ],
+        "filename_prefix": "seedream_output"
+      }
+    }
+  },
+  "injectable_nodes": {
+    "1": {
+      "params": {
+        "prompt": "prompt",
+        "seed": "seed"
+      }
+    },
+    "3": {
+      "params": {
+        "filename_prefix": "filename_prefix"
+      }
+    }
+  }
+}

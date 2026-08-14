@@ -119,12 +119,18 @@ async def dub_video(body: dict):
     audio_pad = max(0.0, total_dur - tts_dur)
 
     output_path = str(out_dir / f"{name}.mp4")
+    sub_cfg = ffmpeg_cfg.get("subtitle", {}) or {}
     merge_pipeline.compose_final(
         str(video_path), audio_path, srt_path, output_path,
         video_pad=video_pad, audio_pad=audio_pad,
         ffmpeg_crf=int(ffmpeg_cfg.get("crf", 13)),
         ffmpeg_pix_fmt=ffmpeg_cfg.get("pix_fmt", "yuv420p"),
-        font_dir=ffmpeg_cfg.get("font", "C:/Windows/Fonts"),
+        font_color=sub_cfg.get("font_color", "FFFFFF"),
+        outline_color=sub_cfg.get("outline_color", "000000"),
+        outline_width=int(sub_cfg.get("outline_width", 2)),
+        alignment=int(sub_cfg.get("alignment", 2)),
+        margin_v=int(sub_cfg.get("margin_v", 40)),
+        shadow=int(sub_cfg.get("shadow", 0)),
     )
 
     rel = Path(output_path).relative_to(settings.OUTPUT_DIR).as_posix()
