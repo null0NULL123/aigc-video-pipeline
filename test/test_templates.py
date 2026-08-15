@@ -103,6 +103,15 @@ def test_registry_loads_new_templates(client):
     assert "seedream_t2i2v" in ids
 
 
+def test_list_templates_include_match_rules(client):
+    """模板列表返回 match_rules 供前端按素材类型过滤工作流"""
+    tpls = client.get("/api/templates").json()
+    by_id = {t["id"]: t for t in tpls}
+    assert "match_rules" in by_id["seedance_i2v"]
+    assert by_id["seedance_i2v"]["match_rules"]["asset_type"] == ["image", "local"]
+    assert by_id["seedance_t2v"]["match_rules"]["asset_type"] == ["ai_generated", "none", ""]
+
+
 def test_find_best_t2i_by_keyword():
     """场景含海报/图片关键词 → 选 seedream_t2i"""
     from pipeline.registry import TemplateRegistry

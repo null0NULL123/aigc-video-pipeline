@@ -45,6 +45,22 @@ def read_shots(excel_path: str) -> list[dict]:
     # 标准化字段
     shots = []
     for r in records:
+        asset_path = _clean(r.get("素材路径", r.get("asset_path", "")))
+        assets = []
+        for p in asset_path.split(";") if asset_path else []:
+            p = p.strip()
+            if not p:
+                continue
+            ext = Path(p).suffix.lower()
+            if ext in (".mp4", ".mov", ".m4v"):
+                assets.append({"type": "video", "path": p})
+            elif ext in (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"):
+                assets.append({"type": "image", "path": p})
+            else:
+                assets.append({"type": "text", "content": p})
+        txt = _clean(r.get("文本素材", ""))
+        if txt:
+            assets.append({"type": "text", "content": txt})
         shot = {
             "id": str(r.get("id", "")).strip(),
             "duration": _parse_duration(_clean(r.get("时长", r.get("duration", "")))),
@@ -52,7 +68,11 @@ def read_shots(excel_path: str) -> list[dict]:
             "dialogue": _clean(r.get("台词", r.get("dialogue", ""))),
             "screen_text": _clean(r.get("屏幕字幕", r.get("screen_text", ""))),
             "asset_type": _clean(r.get("素材来源", r.get("asset_type", "none"))),
-            "asset_path": _clean(r.get("素材路径", r.get("asset_path", ""))),
+            "asset_path": asset_path,
+            "assets": assets,
+            "first_frame": _clean(r.get("首帧", "")),
+            "last_frame": _clean(r.get("尾帧", "")),
+            "workflow_id": _clean(r.get("工作流", "")),
             "status": "pending",
             "prompt": "",
             "video_path": "",

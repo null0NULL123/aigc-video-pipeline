@@ -14,7 +14,7 @@ def test_upload_and_list(client, workdir):
     assert r.status_code == 200
     path = r.json()["path"]
     assert path.startswith("output/assets/images/")
-    assert (workdir / path.replace("/", "\\")).exists()
+    assert (workdir / path).exists()
 
     data = client.get("/api/assets/images").json()
     assert data["total"] == 1

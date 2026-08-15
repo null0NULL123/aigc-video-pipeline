@@ -23,26 +23,67 @@ def _now() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
+def _migrate_shot(shot: dict) -> dict:
+    """补齐新素材模型字段（assets 列表 / first_frame / last_frame）；
+    旧 asset_type+asset_path 迁移为 assets[0]"""
+    if "assets" not in shot:
+        assets = []
+        legacy_type = shot.get("asset_type", "")
+        legacy_path = shot.get("asset_path", "")
+        if legacy_type in ("image", "local") and legacy_path:
+            assets.append({"type": "image", "path": legacy_path})
+        elif legacy_path:
+            ext = Path(legacy_path).suffix.lower()
+            if ext in (".mp4", ".mov", ".m4v"):
+                assets.append({"type": "video", "path": legacy_path})
+            elif ext in (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"):
+                assets.append({"type": "image", "path": legacy_path})
+            else:
+                assets.append({"type": "text", "content": legacy_path})
+        shot["assets"] = assets
+    shot.setdefault("first_frame", "")
+    shot.setdefault("last_frame", "")
+    shot.setdefault("asset_type", "ai_generated")
+    shot.setdefault("asset_path", "")
+    return shot
+
+
 def _ensure_tables() -> list[dict]:
     settings.TABLES_FILE.parent.mkdir(parents=True, exist_ok=True)
     if settings.TABLES_FILE.exists():
         with open(settings.TABLES_FILE, encoding="utf-8") as f:
-            return json.load(f)
+            tables = json.load(f)
+    else:
+        tables = None
 
-    tables = []
-    old = settings.SHOTS_FILE
-    if old.exists():
-        try:
-            shots = json.loads(old.read_text(encoding="utf-8"))
-            if shots:
-                tables.append({
-                    "id": "1", "name": "默认表格",
-                    "created_at": _now(), "shots": shots,
-                })
-                old.unlink(missing_ok=True)
-        except Exception:
-            pass
-    _save_tables(tables)
+    if tables is None:
+        tables = []
+        old = settings.SHOTS_FILE
+        if old.exists():
+            try:
+                shots = json.loads(old.read_text(encoding="utf-8"))
+                if shots:
+                    tables.append({
+                        "id": "1", "name": "默认表格",
+                        "created_at": _now(), "shots": shots,
+                    })
+                    old.unlink(missing_ok=True)
+            except Exception:
+                pass
+        _save_tables(tables)
+        return tables
+
+    changed = False
+    for t in tables:
+        for s in t.get("shots", []):
+            if not isinstance(s, dict):
+                continue
+            before = json.dumps(s, sort_keys=True)
+            s = _migrate_shot(s)
+            if json.dumps(s, sort_keys=True) != before:
+                changed = True
+    if changed:
+        _save_tables(tables)
     return tables
 
 
@@ -138,7 +179,9 @@ async def create_shot(tid: str, shot: dict):
     shot.setdefault("screen_text", "")
     shot.setdefault("asset_type", "ai_generated")
     shot.setdefault("asset_path", "")
+    shot.setdefault("workflow_id", "")
     shot.setdefault("status", "pending")
+    _migrate_shot(shot)
     shots.append(shot)
     _save_tables(tables)
     return shot
@@ -213,10 +256,19 @@ async def import_shots(tid: str, file: UploadFile = File(...)):
         "画面内容": "scene_desc",
         "台词": "dialogue",
         "屏幕字幕": "screen_text",
+        "嵌入文字": "screen_text",
         "素材来源": "asset_type",
         "素材路径": "asset_path",
+        "文本素材": "text_asset",
+        "首帧": "first_frame",
+        "尾帧": "last_frame",
+        "工作流": "workflow_id",
     }
     df.rename(columns=col_map, inplace=True)
+
+    def _clean(v, default: str = "") -> str:
+        s = str(v).strip()
+        return "" if s in ("", "nan") else (s if s else default)
 
     shots = []
     for _, row in df.iterrows():
@@ -225,16 +277,39 @@ async def import_shots(tid: str, file: UploadFile = File(...)):
             duration = int(float(str(dur).replace("s", "").split("-")[-1])) if dur else 4
         except ValueError:
             duration = 4
+
+        asset_path = _clean(row.get("asset_path"))
+        assets = []
+        for p in asset_path.split(";") if asset_path else []:
+            p = p.strip()
+            if not p:
+                continue
+            ext = Path(p).suffix.lower()
+            if ext in (".mp4", ".mov", ".m4v"):
+                assets.append({"type": "video", "path": p})
+            elif ext in (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"):
+                assets.append({"type": "image", "path": p})
+            else:
+                assets.append({"type": "text", "content": p})
+        txt = _clean(row.get("text_asset"))
+        if txt:
+            assets.append({"type": "text", "content": txt})
+
         shot = {
-            "id": str(row.get("id", "")).strip(),
+            "id": _clean(row.get("id")),
             "duration": duration,
-            "scene_desc": str(row.get("scene_desc", "")).strip(),
-            "dialogue": str(row.get("dialogue", "")).strip(),
-            "screen_text": str(row.get("screen_text", "")).strip(),
-            "asset_type": str(row.get("asset_type", "ai_generated")).strip() or "ai_generated",
-            "asset_path": str(row.get("asset_path", "")).strip(),
+            "scene_desc": _clean(row.get("scene_desc")),
+            "dialogue": _clean(row.get("dialogue")),
+            "screen_text": _clean(row.get("screen_text")),
+            "asset_type": _clean(row.get("asset_type"), "ai_generated") or "ai_generated",
+            "asset_path": asset_path,
+            "assets": assets,
+            "first_frame": _clean(row.get("first_frame")),
+            "last_frame": _clean(row.get("last_frame")),
+            "workflow_id": _clean(row.get("workflow_id")),
             "status": "pending",
         }
+        _migrate_shot(shot)
         if shot["id"]:
             shots.append(shot)
 
@@ -251,14 +326,26 @@ async def export_shots(tid: str):
     if not shots:
         raise HTTPException(404, "没有镜头可导出")
 
-    df = pd.DataFrame(shots)
-    col_map = {
-        "id": "id", "duration": "时长", "scene_desc": "画面内容",
-        "dialogue": "台词", "screen_text": "屏幕字幕",
-        "asset_type": "素材来源", "asset_path": "素材路径",
-    }
-    cols = [c for c in col_map.keys() if c in df.columns]
-    df = df[cols].rename(columns=col_map)
+    rows = []
+    for s in shots:
+        assets = s.get("assets") or []
+        paths = [a.get("path") for a in assets if a.get("path")]
+        texts = [a.get("content") for a in assets
+                 if a.get("type") == "text" and a.get("content")]
+        rows.append({
+            "id": s.get("id"),
+            "时长": s.get("duration", 4),
+            "画面内容": s.get("scene_desc", ""),
+            "台词": s.get("dialogue", ""),
+            "嵌入文字": s.get("screen_text", ""),
+            "素材来源": s.get("asset_type", "ai_generated"),
+            "素材路径": ";".join(paths),
+            "文本素材": "\n".join(texts),
+            "首帧": s.get("first_frame", ""),
+            "尾帧": s.get("last_frame", ""),
+            "工作流": s.get("workflow_id", ""),
+        })
+    df = pd.DataFrame(rows)
 
     buf = io.StringIO()
     df.to_csv(buf, index=False)

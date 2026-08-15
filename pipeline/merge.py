@@ -27,6 +27,59 @@ def get_video_duration(video_path: str) -> float:
         return 0.0
 
 
+def get_video_stream_duration(video_path: str) -> float:
+    """ffprobe 获取视频流时长（秒），用于 xfade offset 计算。
+
+    xfade 作用于视频流，offset+duration 不得超过前一段视频流长度；
+    用容器 format duration（可能含音频尾部）会导致转场失败。
+    """
+    cmd = [
+        "ffprobe", "-v", "error",
+        "-select_streams", "v:0",
+        "-show_entries", "stream=duration",
+        "-of", "csv=p=0", video_path,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    try:
+        return float(result.stdout.strip())
+    except ValueError:
+        return 0.0
+
+
+def get_video_resolution(video_path: str) -> tuple[int, int]:
+    """ffprobe 获取视频流分辨率 (width, height)，失败返回 (0, 0)"""
+    cmd = [
+        "ffprobe", "-v", "error",
+        "-select_streams", "v:0",
+        "-show_entries", "stream=width,height",
+        "-of", "csv=p=0", video_path,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    try:
+        parts = result.stdout.strip().split(",")
+        return int(parts[0]), int(parts[1])
+    except (ValueError, IndexError):
+        return 0, 0
+
+
+def uniformize_resolution(video_path: str, output_path: str, width: int, height: int) -> str:
+    """把视频 scale+pad 到指定分辨率（保持比例，黑边居中），并保留音轨"""
+    out = Path(output_path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        "ffmpeg", "-y", "-i", video_path,
+        "-vf", (f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
+                f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black"),
+        "-c:v", "libx264", "-crf", "13", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-b:a", "192k",
+        str(out),
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"分辨率归一化失败: {result.stderr[-200:]}")
+    return str(out)
+
+
 def has_audio_track(video_path: str) -> bool:
     """检测视频是否带音轨"""
     cmd = [
@@ -351,13 +404,29 @@ def merge_with_transition(video_paths: list[str], output_path: str,
     out_path = Path(output_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # 归一化保证都有音轨，记录时长
+    # 归一化保证都有音轨
     inputs = []
-    durations = []
     for i, vp in enumerate(video_paths):
         norm_path = str(out_path.parent / f"xfade_norm_{i}.mp4")
         inputs.append(normalize_segment(vp, norm_path, silent_sample_rate))
-        durations.append(get_video_duration(inputs[-1]))
+
+    # 统一分辨率：取面积最大者作基准，其余 scale+pad（xfade 要求输入分辨率一致）
+    sizes = [get_video_resolution(p) for p in inputs]
+    base_w, base_h = max(
+        sizes, key=lambda s: ((s[0] or 0) * (s[1] or 0), (s[0] or 0), (s[1] or 0)),
+        default=(0, 0),
+    )
+    if base_w > 0 and base_h > 0:
+        for i, p in enumerate(inputs):
+            w, h = sizes[i]
+            if (w, h) != (base_w, base_h):
+                uni_path = str(out_path.parent / f"xfade_uni_{i}.mp4")
+                inputs[i] = uniformize_resolution(p, uni_path, base_w, base_h)
+    else:
+        log.warning("无法探测分辨率，跳过分辨率统一")
+
+    # 记录视频流时长（用于 xfade offset）
+    durations = [get_video_stream_duration(p) for p in inputs]
 
     dur = max(0.05, float(transition_duration))
     n = len(inputs)
@@ -505,6 +574,17 @@ def run(shot_results: list[dict], config: dict) -> str:
                 crf, pix_fmt, font_family, font_size, sub_style,
             )
             composed.append(seg)
+        transition = str(merge_cfg.get("transition", "none") or "none").lower()
+        if transition != "none" and len(composed) > 1:
+            return merge_with_transition(
+                composed, output_path,
+                transition_duration=float(merge_cfg.get("transition_duration", 0.5)),
+                transition=transition,
+                silent_sample_rate=silent_rate,
+                ffmpeg_crf=crf, ffmpeg_pix_fmt=pix_fmt,
+                audio_codec=ffmpeg_cfg.get("audio_codec", "aac"),
+                audio_bitrate=ffmpeg_cfg.get("audio_bitrate", "192k"),
+            )
         return concat_videos(composed, output_path, crf, pix_fmt)
 
     # ── Stage 1: 归一化 + 拼接 ──
@@ -518,7 +598,20 @@ def run(shot_results: list[dict], config: dict) -> str:
         normalized.append(normalize_segment(video_path, norm_path, silent_rate))
 
     merged_name = f"{batch_id}_merged.mp4" if batch_id else "merged.mp4"
-    merged_path = concat_videos(normalized, str(merged_dir / merged_name), crf, pix_fmt)
+    transition = str(merge_cfg.get("transition", "none") or "none").lower()
+    if transition != "none" and len(normalized) > 1:
+        trans_dur = float(merge_cfg.get("transition_duration", 0.5))
+        merged_path = merge_with_transition(
+            normalized, str(merged_dir / merged_name),
+            transition_duration=trans_dur,
+            transition=transition,
+            silent_sample_rate=silent_rate,
+            ffmpeg_crf=crf, ffmpeg_pix_fmt=pix_fmt,
+            audio_codec=ffmpeg_cfg.get("audio_codec", "aac"),
+            audio_bitrate=ffmpeg_cfg.get("audio_bitrate", "192k"),
+        )
+    else:
+        merged_path = concat_videos(normalized, str(merged_dir / merged_name), crf, pix_fmt)
     total_dur = get_video_duration(merged_path)
     log.info(Msg.MERGE_TOTAL.format(dur=f"{total_dur:.1f}"))
 

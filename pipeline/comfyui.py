@@ -143,6 +143,27 @@ class ComfyUIClient:
             log.info(Msg.GEN_UPLOAD.format(name=path.name, server=result["name"]))
             return result["name"]
 
+    async def upload_video(self, video_path: str) -> str:
+        """上传视频，返回服务端文件名（供参考视频 ref_videos）
+        ComfyUI 0.28 无 /upload/video 路由，视频也走 /upload/image（字段 image）"""
+        path = Path(video_path)
+        if not path.exists():
+            raise FileNotFoundError(f"视频不存在: {video_path}")
+
+        data = aiohttp.FormData()
+        data.add_field("image", open(path, "rb"), filename=path.name,
+                       content_type="application/octet-stream")
+        data.add_field("type", "input")
+        data.add_field("overwrite", "true")
+
+        async with self.session.post(
+            f"{self.host}/upload/image", data=data
+        ) as resp:
+            resp.raise_for_status()
+            result = await resp.json()
+            log.info(Msg.GEN_UPLOAD.format(name=path.name, server=result["name"]))
+            return result.get("name", path.name)
+
     async def submit(self, workflow: dict) -> str:
         """提交工作流，返回 prompt_id"""
         async with self.session.post(

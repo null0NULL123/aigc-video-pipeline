@@ -176,3 +176,189 @@ def test_run_whole_passes_subtitle_style(monkeypatch, tmp_path):
     assert captured["alignment"] == 8
     assert captured["margin_v"] == 20
     assert captured["shadow"] == 2
+
+
+def test_run_whole_uses_transition_when_configured(monkeypatch, tmp_path):
+    """whole 模式 + transition=fade：用 merge_with_transition 拼接"""
+    from pathlib import Path
+
+    shots_dir = tmp_path / "v"
+    shots_dir.mkdir()
+    v1, v2 = shots_dir / "1.mp4", shots_dir / "2.mp4"
+    v1.write_bytes(b"v1")
+    v2.write_bytes(b"v2")
+
+    results = [
+        {"shot_id": "1", "status": "done", "video_path": str(v1), "dialogue": "", "screen_text": ""},
+        {"shot_id": "2", "status": "done", "video_path": str(v2), "dialogue": "", "screen_text": ""},
+    ]
+
+    calls = {"transition": None, "concat": None}
+
+    def fake_normalize(video_path, out, *a, **kw):
+        Path(out).write_bytes(b"norm")
+        return str(out)
+
+    def fake_transition(video_list, out, **kw):
+        calls["transition"] = kw
+        Path(out).write_bytes(b"merged")
+        return str(out)
+
+    def fake_concat(video_list, out, *a, **kw):
+        calls["concat"] = video_list
+        Path(out).write_bytes(b"merged")
+        return str(out)
+
+    def fake_tts(text, out, voice=None, rate=None, fallback_duration=1.0):
+        srt = Path(out).with_suffix(".srt")
+        srt.write_text("1\n00:00:00,000 --> 00:00:02,000\n字幕\n", encoding="utf-8")
+        return "", str(srt)
+
+    monkeypatch.setattr(mp, "generate_tts", fake_tts)
+    monkeypatch.setattr(mp, "concat_videos", fake_concat)
+    monkeypatch.setattr(mp, "merge_with_transition", fake_transition)
+    monkeypatch.setattr(mp, "normalize_segment", fake_normalize)
+    monkeypatch.setattr(mp, "get_video_duration", lambda p: 5.0)
+
+    cfg = _cfg(merge={"tts_mode": "none", "transition": "fade", "transition_duration": 0.8,
+                      "break_between_shots_ms": 600, "silent_sample_rate": 44100})
+    base = tmp_path / "out"
+    for k in ("audio_dir", "subs_dir", "merged_dir", "final_dir"):
+        cfg["output"][k] = str(base / k)
+
+    mp.run(results, cfg)
+    assert calls["transition"] is not None
+    assert calls["transition"]["transition"] == "fade"
+    assert calls["transition"]["transition_duration"] == 0.8
+    assert calls["concat"] is None
+
+
+def test_run_whole_plain_concat_without_transition(monkeypatch, tmp_path):
+    """whole 模式 + 无 transition 配置：仍走 concat_videos"""
+    from pathlib import Path
+
+    shots_dir = tmp_path / "v"
+    shots_dir.mkdir()
+    v1, v2 = shots_dir / "1.mp4", shots_dir / "2.mp4"
+    v1.write_bytes(b"v1")
+    v2.write_bytes(b"v2")
+
+    results = [
+        {"shot_id": "1", "status": "done", "video_path": str(v1), "dialogue": "", "screen_text": ""},
+        {"shot_id": "2", "status": "done", "video_path": str(v2), "dialogue": "", "screen_text": ""},
+    ]
+
+    calls = {"transition": None, "concat": None}
+
+    def fake_normalize(video_path, out, *a, **kw):
+        Path(out).write_bytes(b"norm")
+        return str(out)
+
+    def fake_transition(video_list, out, **kw):
+        calls["transition"] = kw
+        Path(out).write_bytes(b"merged")
+        return str(out)
+
+    def fake_concat(video_list, out, *a, **kw):
+        calls["concat"] = video_list
+        Path(out).write_bytes(b"merged")
+        return str(out)
+
+    monkeypatch.setattr(mp, "concat_videos", fake_concat)
+    monkeypatch.setattr(mp, "merge_with_transition", fake_transition)
+    monkeypatch.setattr(mp, "normalize_segment", fake_normalize)
+    monkeypatch.setattr(mp, "get_video_duration", lambda p: 5.0)
+
+    cfg = _cfg(merge={"tts_mode": "none", "transition": "none",
+                      "break_between_shots_ms": 600, "silent_sample_rate": 44100})
+    base = tmp_path / "out"
+    for k in ("audio_dir", "subs_dir", "merged_dir", "final_dir"):
+        cfg["output"][k] = str(base / k)
+
+    mp.run(results, cfg)
+    assert calls["concat"] is not None
+    assert calls["transition"] is None
+
+
+def test_get_video_stream_duration_uses_video_stream(monkeypatch):
+    """get_video_stream_duration 探测视频流时长而非容器时长"""
+    import subprocess
+
+    def fake_run(cmd, capture_output=True, text=True):
+        class R:
+            stdout = "4.041667\n"
+            stderr = ""
+            returncode = 0
+        return R()
+
+    monkeypatch.setattr(mp.subprocess, "run", fake_run)
+    assert mp.get_video_stream_duration("x.mp4") == 4.041667
+
+
+def test_get_video_resolution_parses(monkeypatch):
+    """get_video_resolution 解析 width,height"""
+    def fake_run(cmd, capture_output=True, text=True):
+        class R:
+            stdout = "1280,720\n"
+            stderr = ""
+            returncode = 0
+        return R()
+
+    monkeypatch.setattr(mp.subprocess, "run", fake_run)
+    assert mp.get_video_resolution("x.mp4") == (1280, 720)
+
+
+def test_merge_with_transition_unifies_resolution(monkeypatch, tmp_path):
+    """转场拼接时不同分辨率镜头先统一再 xfade"""
+    from pathlib import Path
+
+    shots_dir = tmp_path / "v"
+    shots_dir.mkdir()
+    v1, v2 = shots_dir / "1.mp4", shots_dir / "2.mp4"
+    v1.write_bytes(b"v1")
+    v2.write_bytes(b"v2")
+
+    calls = {"norm": [], "uni": [], "x": None}
+    sizes = iter([(960, 960), (1280, 720)])
+
+    def fake_normalize(video_path, out, *a, **kw):
+        calls["norm"].append((video_path, str(out)))
+        Path(out).write_bytes(b"n")
+        return str(out)
+
+    def fake_resolution(p):
+        return next(sizes)
+
+    def fake_uniformize(p, out, width, height):
+        calls["uni"].append((p, width, height))
+        Path(out).write_bytes(b"u")
+        return str(out)
+
+    def fake_duration(p):
+        return 4.0
+
+    def fake_run(cmd, capture_output=True, text=True):
+        calls["x"] = cmd
+        class R:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+        return R()
+
+    monkeypatch.setattr(mp, "normalize_segment", fake_normalize)
+    monkeypatch.setattr(mp, "get_video_resolution", fake_resolution)
+    monkeypatch.setattr(mp, "uniformize_resolution", fake_uniformize)
+    monkeypatch.setattr(mp, "get_video_stream_duration", fake_duration)
+    monkeypatch.setattr(mp.subprocess, "run", fake_run)
+
+    out = str(tmp_path / "out.mp4")
+    mp.merge_with_transition([str(v1), str(v2)], out, transition_duration=0.5, transition="fade")
+
+    # 归一化两个输入
+    assert len(calls["norm"]) == 2
+    # 分辨率不同的段被统一到基准 1280x720
+    assert len(calls["uni"]) == 1
+    assert calls["uni"][0][1:] == (1280, 720)
+    # 生成 xfade filter
+    assert "xfade" in str(calls["x"])
+    assert "acrossfade" in str(calls["x"])

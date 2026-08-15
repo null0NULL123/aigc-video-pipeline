@@ -78,6 +78,7 @@ async def list_templates():
             "category": tpl.get("category", ""),
             "description": tpl.get("description", ""),
             "workflow_type": tpl.get("workflow_type", "comfyui"),
+            "match_rules": tpl.get("match_rules", {}),
             "file": f.name,
         })
     return result
