@@ -14,14 +14,28 @@ def reset_state():
     yield
 
 
+class _FakeStream:
+    def __init__(self, lines):
+        self._lines = list(lines)
+        self._idx = 0
+
+    async def readline(self):
+        if self._idx < len(self._lines):
+            line = self._lines[self._idx]
+            self._idx += 1
+            return (line + "\n").encode("utf-8")
+        return b""
+
+
 class _FakeProc:
+    """模拟 asyncio 子进程：stdout.readline() 返回给定行，wait() 返回 returncode"""
     pid = 4242
+    returncode = 0
 
     def __init__(self, lines=("line1", "line2")):
-        self.stdout = iter(lines)
-        self.returncode = 0
+        self.stdout = _FakeStream(lines)
 
-    def wait(self):
+    async def wait(self):
         return self.returncode
 
 
@@ -48,22 +62,23 @@ def test_run_conflict_when_running(client):
 
 
 def test_run_and_finish(client, monkeypatch, workdir):
+    import asyncio as _asyncio
     from web.routers import pipeline as pipeline_router
 
     captured = {}
 
-    def fake_popen(cmd, **kwargs):
-        captured["cmd"] = cmd
+    async def fake_exec(*cmd, **kwargs):
+        captured["cmd"] = list(cmd)
         captured["kwargs"] = kwargs
         return _FakeProc()
 
-    monkeypatch.setattr("web.routers.pipeline.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("web.routers.pipeline.asyncio.create_subprocess_exec", fake_exec)
 
     r = client.post("/api/pipeline/run", json={"input": "input/shots.csv", "name": "batch_x"})
     assert r.status_code == 200
     assert r.json()["ok"] is True
 
-    for _ in range(50):  # 等待后台线程结束（最多 2 秒）
+    for _ in range(50):  # 等待异步任务结束（最多 2 秒）
         if not pipeline_router._state["running"]:
             break
         import time
@@ -101,8 +116,13 @@ def test_generate_cross_table(client, monkeypatch, workdir):
     from web.routers import pipeline as pipeline_router
 
     captured = {}
-    monkeypatch.setattr("web.routers.pipeline.subprocess.Popen",
-                        lambda cmd, **kwargs: captured.update(cmd=cmd, kwargs=kwargs) or _FakeProc())
+
+    async def fake_exec(*cmd, **kwargs):
+        captured["cmd"] = list(cmd)
+        captured["kwargs"] = kwargs
+        return _FakeProc()
+
+    monkeypatch.setattr("web.routers.pipeline.asyncio.create_subprocess_exec", fake_exec)
 
     _seed_table(client)
     client.post("/api/tables", json={"name": "T2"})
@@ -124,6 +144,12 @@ def test_generate_cross_table(client, monkeypatch, workdir):
             break
         import time
         time.sleep(0.04)
+    # 等异步任务真正完成（asyncio.create_task 不阻塞）
+    import time as _time
+    for _ in range(20):
+        _time.sleep(0.05)
+        if not pipeline_router._state["running"]:
+            break
 
     cmd = captured["cmd"]
     assert cmd[:2] == ["python", "cli.py"]
@@ -141,8 +167,10 @@ def test_generate_marks_done(client, monkeypatch, workdir):
     import time
     from web.routers import pipeline as pipeline_router
 
-    monkeypatch.setattr("web.routers.pipeline.subprocess.Popen",
-                        lambda cmd, **kwargs: _FakeProc())
+    async def fake_exec(*cmd, **kwargs):
+        return _FakeProc()
+
+    monkeypatch.setattr("web.routers.pipeline.asyncio.create_subprocess_exec", fake_exec)
 
     _seed_table(client, shot_ids=("1",))
 

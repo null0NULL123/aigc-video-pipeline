@@ -83,6 +83,9 @@ class Msg:
     LG_BATCH_START = "处理 {count} 个镜头..."
     LG_BATCH_DONE = "完成: {done}, 失败: {failed}, 待FFmpeg: {ffmpeg}"
 
+    # ── Pipeline marker 行（stdout 上传给 web 后端解析） ──
+    PIPE_EVENT_PREFIX = "@@PIPE_EVENT@@"
+
     # ── Registry ──
     REG_REGISTERED = "已注册: {tid} - {name}"
     REG_DIR_MISSING = "模板目录不存在: {dir}"

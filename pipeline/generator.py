@@ -5,6 +5,8 @@ v1 起移除 langgraph 依赖
 """
 import asyncio
 from pathlib import Path
+import sys
+import time
 
 from .registry import TemplateRegistry
 from .comfyui import ComfyUIClient
@@ -13,6 +15,37 @@ from .messages import Msg
 from . import llm as llm_client
 
 log = get_logger("generator")
+
+
+# 进程内 batch_id；由 cli.py / pipeline.py 设进去；用于 marker 输出
+_CURRENT_BATCH_ID: list[str | None] = [None]
+
+
+def set_current_batch_id(batch_id: str | None) -> None:
+    """设置当前 batch_id（由 cli.py / pipeline.py 在 spawn subprocess 前调用）"""
+    _CURRENT_BATCH_ID[0] = batch_id
+
+
+def emit_event(event: str, shot_key: str = "", **fields) -> None:
+    """
+    向 stdout 输出 marker 行，供 web 后端解析后更新 tracker。
+
+    格式：@@PIPE_EVENT@@ {json}
+    - event: shot_start / shot_progress / shot_done / shot_failed / batch_done
+    - shot_key: 镜头 key（temp_id 字符串 / table_id+shot_id）
+    - 其他字段透传给 tracker.update_shot(**fields)
+    """
+    import json as _json
+    batch_id = _CURRENT_BATCH_ID[0] or ""
+    payload = {
+        "event": event,
+        "batch_id": batch_id,
+        "shot_key": str(shot_key) if shot_key else "",
+        "ts": time.time(),
+        **fields,
+    }
+    line = f"{Msg.PIPE_EVENT_PREFIX} {_json.dumps(payload, ensure_ascii=False)}"
+    print(line, flush=True)
 
 # 运行时从 config 加载
 CAMERA = ""
@@ -45,12 +78,39 @@ def _select(state: dict) -> dict:
 
     asset_type = state.get("asset_type", "")
     asset_path = state.get("asset_path", "")
+    assets = state.get("assets") or []
+    first_frame = state.get("first_frame", "")
+
+    # 新素材模型（assets[] 多路 + 首帧/尾帧）推导主类型
+    if assets or first_frame:
+        img_assets = [a for a in assets if a.get("type") == "image" and a.get("path")]
+        vid_assets = [a for a in assets if a.get("type") == "video" and a.get("path")]
+        if img_assets or first_frame:
+            asset_type = "image"
+            asset_path = first_frame or img_assets[0]["path"]
+        elif vid_assets:
+            asset_type = "ai_generated"  # 视频仅作参考
+        else:
+            asset_type = "ai_generated"
 
     # 图片不存在时 fallback 到 T2V
     if asset_type in ("image", "local") and asset_path:
         if not Path(asset_path).exists():
             log.warning(f"镜号 {sid}: 素材 {asset_path} 不存在，fallback 到 T2V")
             asset_type = "ai_generated"
+
+    # 镜头显式指定工作流：存在则直接采用，否则回退自动匹配
+    wid = state.get("workflow_id", "")
+    if wid:
+        try:
+            wdata = registry.get(wid)
+            log.info(f"镜号 {sid}: 使用显式工作流 {wid}")
+            return {**state, "workflow_id": wid,
+                    "workflow_type": wdata.get("workflow_type", "comfyui"),
+                    "workflow_data": wdata, "asset_type": asset_type}
+        except KeyError:
+            log.warning(f"镜号 {sid}: 显式工作流 {wid} 不存在，回退自动匹配")
+            wid = ""
 
     wid = registry.find_best(
         asset_type=asset_type,
@@ -214,6 +274,88 @@ async def _submit(state: dict) -> dict:
                         break
             except Exception as e:
                 return {**state, "status": "failed", "error_message": f"上传失败: {e}"}
+
+    # ── 多素材 / 首帧尾帧注入 ─────────────────────────────
+    assets = state.get("assets") or []
+    first_frame = state.get("first_frame", "")
+    last_frame = state.get("last_frame", "")
+    img_assets = [a.get("path") for a in assets
+                  if a.get("type") == "image" and a.get("path")]
+    vid_assets = [a.get("path") for a in assets
+                  if a.get("type") == "video" and a.get("path")]
+
+    first_img = first_frame or (img_assets[0] if img_assets else "")
+    last_img = last_frame or ""
+    extra_imgs = [p for p in img_assets if p != first_img]
+
+    async def _upload(path: str) -> str:
+        if not Path(path).exists():
+            raise FileNotFoundError(f"素材不存在: {path}")
+        return await client.upload_image(path)
+
+    def _seedance_nodes():
+        return [(nid, info) for nid, info in wf.items()
+                if info and "JimengSeedance" in info.get("class_type", "")]
+
+    # 首帧：注入第一个 LoadImage；无 LoadImage 节点则动态创建并接 first_frame_image
+    if first_img and first_img != asset_path:
+        try:
+            server_fn = await _upload(first_img)
+            load_nodes = [nid for nid, info in wf.items()
+                          if info and info.get("class_type") == "LoadImage"]
+            if load_nodes:
+                wf[load_nodes[0]]["inputs"]["image"] = server_fn
+            else:
+                nid = "__first_frame"
+                wf[nid] = {"class_type": "LoadImage", "inputs": {"image": server_fn}}
+                for snid, sinfo in _seedance_nodes():
+                    sinfo["inputs"]["first_frame_image"] = [nid, 0]
+        except Exception as e:
+            log.warning(f"镜号 {sid}: 首帧注入失败，继续: {e}")
+
+    # 尾帧：动态 LoadImage 接 last_frame_image（失败降级）
+    if last_img:
+        try:
+            server_fn = await _upload(last_img)
+            nid = "__last_frame"
+            wf[nid] = {"class_type": "LoadImage", "inputs": {"image": server_fn}}
+            for snid, sinfo in _seedance_nodes():
+                sinfo["inputs"]["last_frame_image"] = [nid, 0]
+        except Exception as e:
+            log.warning(f"镜号 {sid}: 尾帧注入失败，已降级: {e}")
+
+    # 多图参考 ref_images（best-effort；autogrow 槽位名为 ref_image_1..9）
+    if extra_imgs:
+        try:
+            refs = {}
+            for i, p in enumerate(extra_imgs[:9]):
+                s = await _upload(p)
+                nid = f"__ref_img{i}"
+                wf[nid] = {"class_type": "LoadImage", "inputs": {"image": s}}
+                refs[f"ref_image_{i + 1}"] = [nid, 0]
+            if refs:
+                for snid, sinfo in _seedance_nodes():
+                    sinfo["inputs"]["ref_images"] = refs
+        except Exception as e:
+            log.warning(f"镜号 {sid}: 参考图注入失败，已降级: {e}")
+
+    # 视频参考 ref_videos（best-effort；LoadVideo 输入键 file，autogrow 槽位 ref_video_1..3）
+    if vid_assets:
+        try:
+            refs_v = {}
+            for i, p in enumerate(vid_assets[:3]):
+                if not Path(p).exists():
+                    continue
+                s = await client.upload_video(p)
+                nid = f"__ref_vid{i}"
+                wf[nid] = {"class_type": "LoadVideo", "inputs": {"file": s}}
+                refs_v[f"ref_video_{i + 1}"] = [nid, 0]
+            if refs_v:
+                for snid, sinfo in _seedance_nodes():
+                    sinfo["inputs"]["ref_videos"] = refs_v
+        except Exception as e:
+            log.warning(f"镜号 {sid}: 参考视频注入失败，已降级: {e}")
+
     try:
         pid = await client.submit(wf)
         log.info(Msg.LG_SUBMIT_OK.format(pid=pid))
@@ -268,6 +410,10 @@ async def generate_shot(shot: dict, config: dict, registry: TemplateRegistry = N
         "screen_text": shot.get("screen_text", ""),
         "asset_type": shot.get("asset_type", ""),
         "asset_path": shot.get("asset_path", ""),
+        "assets": shot.get("assets") or [],
+        "first_frame": shot.get("first_frame", ""),
+        "last_frame": shot.get("last_frame", ""),
+        "workflow_id": shot.get("workflow_id", ""),
         "duration": shot.get("duration", config.get("input", {}).get("default_duration", 5)),
         "config": config,
         "_ctx": ctx,
@@ -276,9 +422,15 @@ async def generate_shot(shot: dict, config: dict, registry: TemplateRegistry = N
     }
     _ensure_agent_config(state)
     log.info(f"── 镜号 {state['id']} ──")
+    shot_key = str(state["id"])
+    emit_event("shot_start", shot_key=shot_key,
+               status="analyzing",
+               scene_desc=state.get("scene_desc", ""),
+               duration=state.get("duration", 5))
 
     state = _analyze(state)
     state = await _polish(state)
+    emit_event("shot_progress", shot_key=shot_key, status="selected")
 
     # validate 失败重试循环（等价 route_after_validate：回退到 select，最多 max_retries 次）
     for _ in range(state["max_retries"] + 1):
@@ -289,14 +441,35 @@ async def generate_shot(shot: dict, config: dict, registry: TemplateRegistry = N
             break
 
     if state.get("status") != "validated":
+        emit_event("shot_failed", shot_key=shot_key,
+                   status="failed",
+                   stage="validate",
+                   error=state.get("error", "validate failed"))
         return _strip(state)
 
+    emit_event("shot_progress", shot_key=shot_key, status="submitting")
     state = await _submit(state)
     if state.get("status") == "pending_ffmpeg":
+        emit_event("shot_done", shot_key=shot_key,
+                   status="pending_ffmpeg",
+                   stage="ffmpeg-local")
         return _strip(state)
 
+    emit_event("shot_progress", shot_key=shot_key, status="waiting")
     state = await _wait(state)
     state = _review(state)
+
+    final_status = state.get("status", "done")
+    if final_status == "done":
+        emit_event("shot_done", shot_key=shot_key,
+                   status="done",
+                   stage="done",
+                   video_path=state.get("video_path"))
+    else:
+        emit_event("shot_failed", shot_key=shot_key,
+                   status="failed",
+                   stage="review",
+                   error=state.get("error", "review failed"))
     return _strip(state)
 
 
@@ -314,6 +487,10 @@ async def run_batch(shots: list[dict], config: dict, registry: TemplateRegistry,
             except Exception as e:
                 log.error(f"镜号 {shot.get('id', '?')} 生成异常: {e}")
                 base = {k: v for k, v in shot.items() if k not in ("_ctx", "config")}
+                emit_event("shot_failed", shot_key=str(shot.get("id", "")),
+                           status="failed",
+                           stage="exception",
+                           error=str(e))
                 return {**base, "status": "failed", "error_message": str(e)}
 
     results = await asyncio.gather(*[one(s) for s in shots])
@@ -321,4 +498,7 @@ async def run_batch(shots: list[dict], config: dict, registry: TemplateRegistry,
     failed = sum(1 for r in results if r.get("status") == "failed")
     ffmpeg = sum(1 for r in results if r.get("status") == "pending_ffmpeg")
     log.info(Msg.LG_BATCH_DONE.format(done=done, failed=failed, ffmpeg=ffmpeg))
+    emit_event("batch_done", shot_key="",
+               exit_code=0,
+               done=done, failed=failed, pending_ffmpeg=ffmpeg)
     return results

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="aigc-video 视频生成管理面板：表格管理、批量生成、镜头库、视频合并、配音字幕与系统监控">
+  <meta name="description" content="aigc-video 视频生成管理面板：表格与批量生成、素材库、视频合并、配音字幕与系统监控">
   <meta name="theme-color" content="#0F172A">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23EC4899'/%3E%3Cstop offset='1' stop-color='%232563EB'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M13 10l9 6-9 6z' fill='%23fff'/%3E%3C/svg%3E">
   <title>aigc-video 管理面板</title>
@@ -105,19 +105,42 @@
     .video-card:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(0,0,0,.45)}
     .video-card video{width:100%;background:#000;max-height:200px}
     .video-card .info{padding:10px 12px;font-size:13px;color:#94A3B8}
+    .video-card .img-wrap{width:100%;height:200px;background:#0B1120}
+    .lib-layout{display:flex;gap:16px;align-items:flex-start}
+    .lib-nav{position:sticky;top:76px;width:230px;flex-shrink:0;background:var(--el-bg-color);border:1px solid var(--el-border-color);border-radius:12px;padding:12px;max-height:calc(100vh - 100px);overflow-y:auto}
+    .lib-nav .nav-title{font-weight:600;font-size:14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;color:var(--el-text-color-primary)}
+    .lib-nav .nav-item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--el-text-color-regular);transition:background .15s}
+    .lib-nav .nav-item:hover{background:rgba(255,255,255,.05)}
+    .lib-nav .nav-item.active{background:rgba(236,72,153,.12);color:#F472B6}
+    .lib-nav .nav-item .cnt{color:#64748B;font-size:12px;flex-shrink:0}
+    .lib-nav .nav-item .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .lib-main{flex:1;min-width:0}
+    .lib-group{margin-bottom:20px}
+    .lib-group-header{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--el-bg-color);border:1px solid var(--el-border-color);border-radius:10px;cursor:pointer;margin-bottom:12px;user-select:none;transition:border-color .15s}
+    .lib-group-header:hover{border-color:rgba(236,72,153,.5)}
+    .lib-group-header .chev{color:#64748B;display:flex;transition:transform .2s}
+    .lib-group-header .chev.open{transform:rotate(90deg)}
+    .lib-group-header .gname{font-weight:600;font-size:14px;color:var(--el-text-color-primary)}
+    .lib-group-header .gmeta{font-size:12px;color:#64748B}
+    .lib-group-header .spacer{flex:1}
+    .video-card .img-wrap .el-image{width:100%;height:100%}
     .stat-row{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:16px}
     .stat-item{background:var(--el-bg-color-overlay);border:1px solid var(--el-border-color);border-radius:12px;padding:18px 28px;min-width:160px;text-align:center;transition:border-color .2s}
     .stat-item:hover{border-color:rgba(236,72,153,.5)}
     .stat-item .val{font-size:28px;font-weight:700;color:#fff}
     .stat-item .label{font-size:12px;color:#64748B;margin-top:4px}
-    .tables-layout{display:flex;gap:16px;align-items:flex-start}
-    .table-list{width:230px;flex-shrink:0;background:var(--el-bg-color);border:1px solid var(--el-border-color);border-radius:12px;padding:12px}
+    .tables-layout{position:relative}
+    .table-list{position:absolute;left:0;top:0;width:230px;background:var(--el-bg-color);border:1px solid var(--el-border-color);border-radius:12px;padding:12px;z-index:30;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+    .table-list-mask{position:fixed;inset:0;z-index:29}
     .table-list .item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;transition:background .15s}
     .table-list .item:hover{background:rgba(255,255,255,.05)}
     .table-list .item.active{background:rgba(236,72,153,.12);color:#F472B6}
     .table-list .item .meta{color:#64748B;font-size:12px}
-    .table-main{flex:1;min-width:0}
-    .gen-table-card{margin-bottom:16px}
+    .table-main{min-width:0}
+    .mat-cell{display:flex;align-items:center;gap:8px}
+    .mat-thumb{width:32px;height:32px;border-radius:6px;object-fit:cover;background:#0B1120;flex-shrink:0}
+    .wf-cell{display:flex;align-items:center;gap:6px}
+    .wf-auto-tag{font-size:11px;color:var(--el-text-color-secondary)}
     .gen-summary{display:flex;align-items:center;gap:16px;margin:12px 0;flex-wrap:wrap}
     .video-item{display:flex;gap:12px;align-items:center;padding:8px;border:1px solid var(--el-border-color);border-radius:10px;margin-bottom:8px;background:var(--el-bg-color);cursor:pointer;transition:border-color .15s,background .15s}
     .video-item:hover{border-color:#EC4899;background:var(--el-bg-color-overlay)}
@@ -146,8 +169,9 @@
     }
     @media (max-width:900px){
       .main-content{margin-top:16px}
-      .tables-layout{flex-direction:column}
-      .table-list{width:100%}
+      .table-list{left:0;right:0;width:auto}
+      .lib-layout{flex-direction:column}
+      .lib-nav{width:100%;position:static;max-height:none}
       .split-pane{flex-direction:column}
       .stat-row{gap:12px}
       .stat-item{min-width:calc(50% - 12px);padding:14px 16px}
@@ -188,9 +212,8 @@
     <el-button class="menu-toggle" text aria-label="打开菜单" @click="menuDlg=true"><el-icon :size="20"><Fold></Fold></el-icon></el-button>
     <div class="top-nav">
       <el-menu mode="horizontal" :default-active="activeTab" @select="switchTab($event)" :ellipsis="false" style="border:none;flex:1;">
-        <el-menu-item index="tables"><el-icon><Notebook></Notebook></el-icon><span>表格</span></el-menu-item>
         <el-menu-item index="generate"><el-icon><Lightning></Lightning></el-icon><span>生成</span></el-menu-item>
-        <el-menu-item index="library"><el-icon><Film></Film></el-icon><span>镜头库</span></el-menu-item>
+        <el-menu-item index="library"><el-icon><Film></Film></el-icon><span>素材库</span></el-menu-item>
         <el-menu-item index="merge"><el-icon><copy-document></copy-document></el-icon><span>合并</span></el-menu-item>
         <el-menu-item index="dub"><el-icon><Microphone></Microphone></el-icon><span>配音字幕</span></el-menu-item>
         <el-menu-item index="settings"><el-icon><Setting></Setting></el-icon><span>设置</span></el-menu-item>
@@ -211,17 +234,20 @@
     </div>
   </el-drawer>
 
-  <!-- ═══════════════ 1. 表格管理 ═══════════════ -->
-  <div class="main-content" v-if="activeTab==='tables'">
+  <!-- ═══════════════ 1. 表格与批量生成（合并页） ═══════════════ -->
+  <div class="main-content" v-if="activeTab==='generate'">
     <div class="tables-layout">
-      <div class="table-list">
+      <div class="table-list" v-show="tableListOpen">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
           <span style="font-weight:600;font-size:14px;">表格</span>
           <el-button size="small" type="primary" link aria-label="新建表格" @click="createTable"><el-icon><Plus></Plus></el-icon></el-button>
         </div>
         <div v-for="t in tables" :key="t.id" class="item" :class="{active: curTable===t.id}" @click="selectTable(t.id)">
-          <div>
-            <div>{{ t.name }}</div>
+          <div style="min-width:0;flex:1;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ t.name }}</span>
+              <el-tag size="small" type="danger" v-if="(genSelected[t.id]||[]).length">已选 {{ (genSelected[t.id]||[]).length }}</el-tag>
+            </div>
             <div class="meta">{{ t.shot_count }} 镜头 / {{ t.done_count }} 完成</div>
           </div>
           <el-popconfirm title="删除整个表格？" @confirm="deleteTable(t.id)" width="180">
@@ -230,153 +256,106 @@
         </div>
         <div v-if="!tables.length" style="color:var(--el-text-color-secondary);font-size:13px;text-align:center;padding:16px 0;">暂无表格</div>
       </div>
+      <div class="table-list-mask" v-if="tableListOpen" @click="tableListOpen=false"></div>
 
-      <div class="table-main" v-if="curTable">
-        <div class="shots-toolbar">
-          <el-button type="primary" @click="openShotDialog()"><el-icon><Plus></Plus></el-icon> 新增镜头</el-button>
-          <el-upload :action="'/api/tables/'+curTable+'/import'" :on-success="onImportSuccess" :on-error="onUploadError" :show-file-list="false" accept=".csv,.xlsx,.xls">
-            <el-button><el-icon><Upload></Upload></el-icon> 导入</el-button>
-          </el-upload>
-          <el-button @click="exportShots"><el-icon><Download></Download></el-icon> 导出 CSV</el-button>
-          <span class="count">共 {{ tableShots.length }} 个镜头</span>
-        </div>
-        <el-table :data="tableShots" border stripe row-key="id" size="default">
-          <el-table-column label="顺序" width="80" align="center">
-            <template #default="{row,$index}">
-              <el-button link size="small" :disabled="$index===0" @click="moveShot($index,-1)"><el-icon><Top></Top></el-icon></el-button>
-              <el-button link size="small" :disabled="$index===tableShots.length-1" @click="moveShot($index,1)"><el-icon><Bottom></Bottom></el-icon></el-button>
-            </template>
-          </el-table-column>
-          <el-table-column prop="id" label="ID" width="60" align="center"></el-table-column>
-          <el-table-column prop="duration" label="时长" width="70" align="center">
-            <template #default="{row}">{{ row.duration }}s</template>
-          </el-table-column>
-          <el-table-column prop="scene_desc" label="画面内容" min-width="200">
-            <template #default="{row}"><div class="scene-cell" :title="row.scene_desc">{{ row.scene_desc }}</div></template>
-          </el-table-column>
-          <el-table-column prop="dialogue" label="台词" min-width="150">
-            <template #default="{row}"><div class="scene-cell" :title="row.dialogue">{{ row.dialogue }}</div></template>
-          </el-table-column>
-          <el-table-column prop="screen_text" label="屏幕字幕" min-width="120">
-            <template #default="{row}"><div class="scene-cell" :title="row.screen_text">{{ row.screen_text }}</div></template>
-          </el-table-column>
-          <el-table-column prop="asset_type" label="素材" width="100" align="center">
-            <template #default="{row}">
-              <el-tag size="small" :type="row.asset_type==='ai_generated'?'success':row.asset_type==='image'?'warning':'info'">{{ row.asset_type }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="status" label="状态" width="80" align="center">
-            <template #default="{row}">
-              <el-tag size="small" :type="row.status==='done'?'success':row.status==='error'?'danger':''">{{ row.status }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="130" align="center" fixed="right">
-            <template #default="{row}">
-              <el-button link type="primary" size="small" @click="openShotDialog(row)">编辑</el-button>
-              <el-popconfirm title="确认删除？" @confirm="deleteShot(row.id)">
-                <template #reference><el-button link type="danger" size="small">删除</el-button></template>
-              </el-popconfirm>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
-      <div class="table-main" v-else style="color:var(--el-text-color-secondary);text-align:center;padding:60px 0;">请选择或新建一个表格</div>
-    </div>
-  </div>
-
-  <!-- 镜头弹窗 -->
-  <el-dialog v-model="shotDlg" :title="shotForm.id?'编辑镜头':'新增镜头'" :width="isNarrow?'94vw':'600px'">
-    <el-form :model="shotForm" label-width="90px" class="shot-dialog">
-      <el-form-item label="时长 (秒)"><el-input-number v-model="shotForm.duration" :min="1" :max="30"></el-input-number></el-form-item>
-      <el-form-item label="画面内容"><el-input v-model="shotForm.scene_desc" type="textarea" :rows="3"></el-input></el-form-item>
-      <el-form-item label="台词"><el-input v-model="shotForm.dialogue" type="textarea" :rows="2"></el-input></el-form-item>
-      <el-form-item label="屏幕字幕"><el-input v-model="shotForm.screen_text" type="textarea" :rows="2"></el-input></el-form-item>
-      <el-form-item label="素材类型">
-        <el-select v-model="shotForm.asset_type">
-          <el-option label="AI 生成" value="ai_generated"></el-option>
-          <el-option label="图片素材" value="image"></el-option>
-          <el-option label="无素材" value="none"></el-option>
-        </el-select>
-      </el-form-item>
-      <el-form-item label="素材选择" v-if="shotForm.asset_type==='image'">
-        <div style="width:100%">
-          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
-            <el-upload action="/api/assets/images" :on-success="onAssetUploaded" :on-error="onUploadError" :show-file-list="false" accept=".png,.jpg,.jpeg,.webp,.gif">
-              <el-button size="small" type="primary" plain><el-icon><Upload></Upload></el-icon> 上传图片</el-button>
+      <div class="table-main">
+        <div v-if="curTable">
+          <div class="shots-toolbar">
+            <el-button size="small" @click="tableListOpen=!tableListOpen">
+              <el-icon><Folder></Folder></el-icon> 表格
+            </el-button>
+            <el-button type="primary" @click="openShotDialog()"><el-icon><Plus></Plus></el-icon> 新增镜头</el-button>
+            <el-upload :action="'/api/tables/'+curTable+'/import'" :on-success="onImportSuccess" :on-error="onUploadError" :show-file-list="false" accept=".csv,.xlsx,.xls">
+              <el-button><el-icon><Upload></Upload></el-icon> 导入</el-button>
             </el-upload>
-            <el-input v-model="shotForm.asset_path" size="small" placeholder="或手动输入相对路径"></el-input>
+            <el-button @click="exportShots"><el-icon><Download></Download></el-icon> 导出 CSV</el-button>
+            <el-button link @click="selectAllInTable(curTable, true)">全选</el-button>
+            <el-button link @click="selectAllInTable(curTable, false)">清空</el-button>
+            <span class="count">共 {{ (genShots[curTable]||[]).length }} 个镜头</span>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;max-height:180px;overflow-y:auto;">
-            <div v-for="img in assetImages" :key="img.path" @click="shotForm.asset_path=img.path"
-                 style="border:2px solid #ebeef5;border-radius:6px;cursor:pointer;overflow:hidden;"
-                 :style="shotForm.asset_path===img.path?'border-color:var(--el-color-primary)':''">
-              <img :src="'/api/assets/images/'+img.path" style="width:100%;height:56px;object-fit:cover;display:block"/>
-            </div>
-          </div>
-          <div style="font-size:12px;color:var(--el-text-color-secondary);margin-top:4px;">点击选择素材图片，路径自动填入</div>
+          <el-table :data="genShots[curTable] || []" border stripe row-key="id" size="default">
+            <el-table-column width="40" align="center">
+              <template #default="{row}">
+                <el-checkbox :model-value="(genSelected[curTable]||[]).includes(row.id)"
+                             @change="val=>toggleGen(curTable,row.id,val)"/>
+              </template>
+            </el-table-column>
+            <el-table-column label="顺序" width="70" align="center">
+              <template #default="{row,$index}">
+                <el-button link size="small" :disabled="$index===0" @click="moveShot($index,-1)"><el-icon><Top></Top></el-icon></el-button>
+                <el-button link size="small" :disabled="$index===(genShots[curTable]||[]).length-1" @click="moveShot($index,1)"><el-icon><Bottom></Bottom></el-icon></el-button>
+              </template>
+            </el-table-column>
+            <el-table-column label="素材" width="150">
+              <template #default="{row}">
+                <div class="mat-cell" style="flex-wrap:wrap">
+                  <el-tag v-if="assetCount(row,'image')" size="small" type="warning">图×{{ assetCount(row,'image') }}</el-tag>
+                  <el-tag v-if="assetCount(row,'video')" size="small" type="primary">视×{{ assetCount(row,'video') }}</el-tag>
+                  <el-tag v-if="assetCount(row,'text')" size="small" type="success">文×{{ assetCount(row,'text') }}</el-tag>
+                  <el-tag v-if="!assetCount(row,'image')&&!assetCount(row,'video')&&!assetCount(row,'text')" size="small" type="info">无</el-tag>
+                  <el-tag v-if="row.first_frame" size="small" type="danger" effect="plain">首</el-tag>
+                  <el-tag v-if="row.last_frame" size="small" type="danger" effect="plain">尾</el-tag>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="工作流" width="170">
+              <template #default="{row}">
+                <el-select v-model="row.workflow_id" size="small" placeholder="自动匹配" @change="patchWorkflow(row)">
+                  <el-option label="自动匹配" value=""></el-option>
+                  <el-option v-for="w in wfOptionsFor(row)" :key="w.id" :label="w.name" :value="w.id"></el-option>
+                </el-select>
+              </template>
+            </el-table-column>
+            <el-table-column prop="scene_desc" label="画面内容" min-width="240">
+              <template #default="{row}"><div class="scene-cell" :title="row.scene_desc">{{ row.scene_desc }}</div></template>
+            </el-table-column>
+            <el-table-column prop="dialogue" label="台词" min-width="140">
+              <template #default="{row}"><div class="scene-cell" :title="row.dialogue">{{ row.dialogue }}</div></template>
+            </el-table-column>
+            <el-table-column prop="screen_text" label="嵌入文字" min-width="120">
+              <template #default="{row}"><div class="scene-cell" :title="row.screen_text">{{ row.screen_text }}</div></template>
+            </el-table-column>
+            <el-table-column prop="duration" label="时长" width="60" align="center">
+              <template #default="{row}">{{ row.duration }}s</template>
+            </el-table-column>
+            <el-table-column prop="status" label="状态" width="80" align="center">
+              <template #default="{row}">
+                <el-tag size="small" :type="row.status==='done'?'success':row.status==='error'?'danger':''">{{ row.status }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="130" align="center" fixed="right">
+              <template #default="{row}">
+                <el-button link type="primary" size="small" @click="openShotDialog(row)">编辑</el-button>
+                <el-popconfirm title="确认删除？" @confirm="deleteShot(row.id)">
+                  <template #reference><el-button link type="danger" size="small">删除</el-button></template>
+                </el-popconfirm>
+              </template>
+            </el-table-column>
+          </el-table>
         </div>
-      </el-form-item>
-    </el-form>
-    <template #footer>
-      <el-button @click="shotDlg=false">取消</el-button>
-      <el-button type="primary" @click="saveShot" :loading="shotSaving">保存</el-button>
-    </template>
-  </el-dialog>
+        <div v-else style="color:var(--el-text-color-secondary);text-align:center;padding:60px 0;">请选择或新建一个表格</div>
 
-  <!-- ═══════════════ 2. 批量生成 ═══════════════ -->
-  <div class="main-content" v-if="activeTab==='generate'">
-    <el-card shadow="never" class="status-card">
-      <template #header>批量生成（可跨表格选择镜头）</template>
-      <div v-for="t in tables" :key="t.id" class="gen-table-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <b>{{ t.name }}</b>
-          <span>
-            <el-button size="small" link @click="selectAllInTable(t.id, true)">全选</el-button>
-            <el-button size="small" link @click="selectAllInTable(t.id, false)">清空</el-button>
-          </span>
+        <div class="gen-summary">
+          <span>已选 <b style="color:var(--el-color-primary)">{{ genTotal }}</b> 个镜头</span>
+          <el-input v-model="genName" placeholder="批次名（留空自动生成）" style="width:220px"></el-input>
+          <el-button type="primary" @click="runGenerate" :loading="pipelineRunning" :disabled="pipelineRunning || genTotal===0">
+            <el-icon v-if="!pipelineRunning"><video-play></video-play></el-icon>
+            {{ pipelineRunning ? '生成中...' : '开始生成' }}
+          </el-button>
         </div>
-        <el-table :data="genShots[t.id] || []" border stripe size="small" max-height="280">
-          <el-table-column width="40" align="center">
-            <template #default="{row}">
-              <el-checkbox :model-value="(genSelected[t.id]||[]).includes(row.id)"
-                           @change="val=>toggleGen(t.id,row.id,val)"/>
-            </template>
-          </el-table-column>
-          <el-table-column prop="id" label="ID" width="50" align="center"></el-table-column>
-          <el-table-column prop="duration" label="时长" width="60" align="center">
-            <template #default="{row}">{{ row.duration }}s</template>
-          </el-table-column>
-          <el-table-column prop="scene_desc" label="画面内容" min-width="180">
-            <template #default="{row}"><div class="scene-cell" :title="row.scene_desc">{{ row.scene_desc }}</div></template>
-          </el-table-column>
-          <el-table-column prop="status" label="状态" width="70" align="center">
-            <template #default="{row}">
-              <el-tag size="small" :type="row.status==='done'?'success':'info'">{{ row.status }}</el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
 
-      <div class="gen-summary">
-        <span>已选 <b style="color:var(--el-color-primary)">{{ genTotal }}</b> 个镜头</span>
-        <el-input v-model="genName" placeholder="批次名（留空自动生成）" style="width:220px"></el-input>
-        <el-button type="primary" @click="runGenerate" :loading="pipelineRunning" :disabled="pipelineRunning || genTotal===0">
-          <el-icon v-if="!pipelineRunning"><video-play></video-play></el-icon>
-          {{ pipelineRunning ? '生成中...' : '开始生成' }}
-        </el-button>
+        <el-descriptions :column="4" size="small" border v-if="pipelineStatus.started_at">
+          <el-descriptions-item label="任务">{{ pipelineStatus.job || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="启动时间">{{ pipelineStatus.started_at }}</el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <el-tag :type="pipelineRunning?'warning':pipelineStatus.exit_code===0?'success':'info'">
+              {{ pipelineRunning ? '运行中' : pipelineStatus.exit_code===0 ? '成功' : pipelineStatus.exit_code===null?'未运行':'退出码 '+pipelineStatus.exit_code }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="结束时间">{{ pipelineStatus.finished_at || '-' }}</el-descriptions-item>
+        </el-descriptions>
       </div>
-
-      <el-descriptions :column="4" size="small" border v-if="pipelineStatus.started_at">
-        <el-descriptions-item label="任务">{{ pipelineStatus.job || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="启动时间">{{ pipelineStatus.started_at }}</el-descriptions-item>
-        <el-descriptions-item label="状态">
-          <el-tag :type="pipelineRunning?'warning':pipelineStatus.exit_code===0?'success':'info'">
-            {{ pipelineRunning ? '运行中' : pipelineStatus.exit_code===0 ? '成功' : pipelineStatus.exit_code===null?'未运行':'退出码 '+pipelineStatus.exit_code }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="结束时间">{{ pipelineStatus.finished_at || '-' }}</el-descriptions-item>
-      </el-descriptions>
-    </el-card>
+    </div>
 
     <el-card shadow="never" style="margin-top:16px;">
       <template #header>
@@ -389,40 +368,223 @@
     </el-card>
   </div>
 
-  <!-- ═══════════════ 3. 镜头库 ═══════════════ -->
+  <!-- ═══════════════ 2. 图片生成 ═══════════════ -->
+  <div class="main-content" v-if="activeTab==='images'">
+    <el-card shadow="never">
+      <template #header>图片生成（文生图）</template>
+      <el-input v-model="imgPrompt" type="textarea" :rows="4" placeholder="描述你想生成的画面，例如：产品海报，科技感，蓝色渐变背景，简洁排版"></el-input>
+      <div style="display:flex;gap:12px;align-items:center;margin:16px 0;flex-wrap:wrap;">
+        <el-select v-model="imgCount" style="width:120px">
+          <el-option v-for="n in [1,2,3,4]" :key="n" :label="n+' 张'" :value="n"></el-option>
+        </el-select>
+        <el-button type="primary" @click="runImageGen" :loading="pipelineRunning" :disabled="pipelineRunning || !imgPrompt.trim()">
+          <el-icon v-if="!pipelineRunning"><video-play></video-play></el-icon>
+          {{ pipelineRunning ? '生成中...' : '生成图片' }}
+        </el-button>
+        <el-button @click="loadVideos"><el-icon><Refresh></Refresh></el-icon> 刷新</el-button>
+        <span class="wf-auto-tag">生成结果自动保存到素材库，可在镜头「首帧/尾帧」里选用</span>
+      </div>
+      <el-descriptions :column="3" size="small" border v-if="pipelineStatus.started_at">
+        <el-descriptions-item label="任务">{{ pipelineStatus.job || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="pipelineRunning?'warning':pipelineStatus.exit_code===0?'success':'info'">
+            {{ pipelineRunning ? '运行中' : pipelineStatus.exit_code===0 ? '完成' : pipelineStatus.exit_code===null?'未运行':'退出码 '+pipelineStatus.exit_code }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="启动时间">{{ pipelineStatus.started_at }}</el-descriptions-item>
+      </el-descriptions>
+    </el-card>
+
+    <el-card shadow="never" style="margin-top:16px;">
+      <template #header>最近生成的图片</template>
+      <div class="video-grid" v-if="imgResults.length">
+        <el-card v-for="img in imgResults" :key="img.path" shadow="hover" class="video-card">
+          <div class="img-wrap">
+            <el-image :src="imgSrc(img.path)" :preview-src-list="[imgSrc(img.path)]" preview-teleported fit="contain" lazy></el-image>
+          </div>
+          <div class="info">
+            <div style="font-weight:600;color:var(--el-text-color-primary);">{{ img.filename }}</div>
+            <div>{{ img.size_mb }} MB · {{ img.batch_id }}</div>
+            <el-button size="small" type="primary" link style="margin-top:4px;" @click="downloadImg(img.path)">下载</el-button>
+          </div>
+        </el-card>
+      </div>
+      <el-empty v-else description="还没有生成的图片" :image-size="80"></el-empty>
+    </el-card>
+  </div>
+
+  <!-- 镜头弹窗 -->
+  <el-dialog v-model="shotDlg" :title="shotForm.id?'编辑镜头':'新增镜头'" :width="isNarrow?'94vw':'600px'">
+    <el-form :model="shotForm" label-width="90px" class="shot-dialog">
+      <el-form-item label="时长 (秒)"><el-input-number v-model="shotForm.duration" :min="1" :max="30"></el-input-number></el-form-item>
+      <el-form-item label="画面内容"><el-input v-model="shotForm.scene_desc" type="textarea" :rows="3"></el-input></el-form-item>
+      <el-form-item label="台词"><el-input v-model="shotForm.dialogue" type="textarea" :rows="2"></el-input></el-form-item>
+      <el-form-item label="嵌入文字"><el-input v-model="shotForm.screen_text" type="textarea" :rows="2" placeholder="叠加到画面中的文字（无台词时可作配音文本）"></el-input></el-form-item>
+      <el-form-item label="素材">
+        <div style="width:100%">
+          <div v-for="(a,i) in shotForm.assets||[]" :key="i" style="display:flex;gap:8px;margin-bottom:8px;align-items:flex-start;">
+            <el-select v-model="a.type" style="width:88px" @change="a.path='';a.content=''">
+              <el-option label="图片" value="image"></el-option>
+              <el-option label="视频" value="video"></el-option>
+              <el-option label="文本" value="text"></el-option>
+            </el-select>
+            <el-select v-if="a.type!=='text'" v-model="a.path" filterable style="flex:1" placeholder="从素材库选择（可搜索或手动输入路径）">
+              <el-option v-for="m in (a.type==='image'?allImages:mediaVideos)" :key="m.path" :label="m.name" :value="m.path"></el-option>
+            </el-select>
+            <el-input v-else v-model="a.content" type="textarea" :rows="1" placeholder="文本素材内容（文案/标题，供 prompt 参考）"></el-input>
+            <el-button link type="danger" @click="shotForm.assets.splice(i,1)">移除</el-button>
+          </div>
+          <el-button size="small" @click="shotForm.assets.push({type:'image',path:'',content:''})">
+            <el-icon><Plus></Plus></el-icon> 添加素材
+          </el-button>
+        </div>
+      </el-form-item>
+      <el-form-item label="首帧">
+        <div style="display:flex;gap:8px;align-items:center;width:100%;">
+          <el-select v-model="shotForm.first_frame" filterable clearable placeholder="选择首帧图片（可留空）" style="flex:1">
+            <el-option v-for="m in allImages" :key="m.path" :label="m.name" :value="m.path"></el-option>
+          </el-select>
+          <el-button size="small" link type="primary" @click="genFrame('first_frame')">文生图</el-button>
+        </div>
+      </el-form-item>
+      <el-form-item label="尾帧">
+        <div style="display:flex;gap:8px;align-items:center;width:100%;">
+          <el-select v-model="shotForm.last_frame" filterable clearable placeholder="选择尾帧图片（可留空）" style="flex:1">
+            <el-option v-for="m in allImages" :key="m.path" :label="m.name" :value="m.path"></el-option>
+          </el-select>
+          <el-button size="small" link type="primary" @click="genFrame('last_frame')">文生图</el-button>
+        </div>
+      </el-form-item>
+      <el-form-item label="工作流">
+        <el-select v-model="shotForm.workflow_id" placeholder="自动匹配" style="width:100%">
+          <el-option label="自动匹配" value=""></el-option>
+          <el-option v-for="w in wfOptionsFor(shotForm)" :key="w.id" :label="w.name" :value="w.id"></el-option>
+        </el-select>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="shotDlg=false">取消</el-button>
+      <el-button type="primary" @click="saveShot" :loading="shotSaving">保存</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- ═══════════════ 3. 素材库 ═══════════════ -->
   <div class="main-content" v-if="activeTab==='library'">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <h3>镜头库 <span style="color:var(--el-text-color-secondary);font-weight:normal;font-size:14px;">共 {{ videosList.length }} 个视频</span></h3>
-      <div>
+      <h3>素材库 <span style="color:var(--el-text-color-secondary);font-weight:normal;font-size:14px;">共 {{ videosList.length }} 个素材</span></h3>
+      <div style="display:flex;gap:8px;align-items:center;">
         <el-upload action="/api/videos/import" :on-success="onVideoImported" :on-error="onUploadError" :show-file-list="false" accept=".mp4,.mov,.m4v">
-          <el-button type="primary" plain><el-icon><Upload></Upload></el-icon> 导入现有视频</el-button>
+          <el-button type="primary" plain><el-icon><Upload></Upload></el-icon> 导入视频</el-button>
         </el-upload>
-        <el-button @click="loadVideos" style="margin-left:8px;"><el-icon><Refresh></Refresh></el-icon> 刷新</el-button>
+        <el-upload action="/api/assets/images" :on-success="onAssetUploaded" :on-error="onUploadError" :show-file-list="false" accept=".png,.jpg,.jpeg,.webp,.gif">
+          <el-button type="primary" plain><el-icon><Upload></Upload></el-icon> 导入图片</el-button>
+        </el-upload>
+        <el-button type="primary" plain @click="loadVideos"><el-icon><Refresh></Refresh></el-icon> 刷新</el-button>
       </div>
     </div>
 
-    <div v-if="Object.keys(videoBatches).length === 0" style="text-align:center;padding:60px 0;">
-      <el-empty description="还没有视频"></el-empty>
-    </div>
+    <div class="lib-layout">
+      <div class="lib-nav" v-if="!isNarrow">
+        <div class="nav-title">
+          <span>分组目录</span>
+          <span style="display:flex;gap:2px;">
+            <el-button link size="small" @click="expandAllGroups">全部展开</el-button>
+            <el-button link size="small" @click="collapseAllGroups">全部折叠</el-button>
+          </span>
+        </div>
+        <div v-for="g in navGroups" :key="g.id" class="nav-item" :class="{active:navActive===g.id}" @click="scrollToGroup(g.id)">
+          <span class="nm">{{ g.name }}</span>
+          <span class="cnt">{{ g.count }}</span>
+        </div>
+        <div class="nav-item" :class="{active:navActive==='__assets__'}" @click="scrollToGroup('__assets__')">
+          <span class="nm">素材图片</span>
+          <span class="cnt">{{ assetImages.length }}</span>
+        </div>
+        <div class="nav-item" v-if="hiddenVideos.length" :class="{active:navActive==='__hidden__'}" @click="scrollToGroup('__hidden__')">
+          <span class="nm">已隐藏</span>
+          <span class="cnt">{{ hiddenVideos.length }}</span>
+        </div>
+      </div>
 
-    <div v-for="(batchVideos, batchId) in videoBatches" :key="batchId" style="margin-bottom:24px;">
-      <h4 style="margin-bottom:12px;color:var(--el-text-color-regular);">
-        <el-tag :type="batchId==='导入'?'warning':''">{{ batchId }}</el-tag>
-        <span style="margin-left:8px;font-weight:normal;font-size:13px;color:var(--el-text-color-secondary);">{{ batchVideos.length }} 个视频</span>
-        <el-button v-if="batchId!=='导入'&&batchId!=='root'" size="small" link type="primary" style="margin-left:12px;" @click="downloadBatch(batchId)">
-          <el-icon><Download></Download></el-icon> 打包下载
-        </el-button>
-      </h4>
-      <div class="video-grid">
-        <el-card v-for="v in batchVideos" :key="v.path" shadow="hover" class="video-card">
-          <video :src="'/api/videos/'+v.path" controls preload="metadata"></video>
-          <div class="info">
-            <div style="font-weight:600;color:var(--el-text-color-primary);">{{ v.filename }}</div>
-            <div>{{ v.size_mb }} MB · {{ v.kind==='imported'?'导入':'生成' }}</div>
-            <div v-if="v.dialogue" style="color:var(--el-text-color-secondary);" :title="v.dialogue">{{ v.dialogue.slice(0,40) }}{{ v.dialogue.length>40?'...':'' }}</div>
-            <el-button v-if="v.kind==='imported'" size="small" type="danger" link style="margin-top:4px;" @click="deleteVideo(v.path)">删除</el-button>
+      <div class="lib-main">
+        <div v-if="Object.keys(videoBatches).length===0 && !hiddenVideos.length && !assetImages.length" style="text-align:center;padding:60px 0;">
+          <el-empty description="还没有素材"></el-empty>
+        </div>
+
+        <div v-for="(batchVideos, batchId) in videoBatches" :key="batchId" class="lib-group" :id="'lib-'+batchId" style="scroll-margin-top:76px;">
+          <div class="lib-group-header" @click="toggleGroup('b:'+batchId)">
+            <span class="chev" :class="expandedGroups['b:'+batchId]!==false?'open':''"><el-icon><ArrowRight></ArrowRight></el-icon></span>
+            <el-tag :type="batchId==='导入'?'warning':''" size="small">{{ batchId }}</el-tag>
+            <span class="gmeta">{{ batchCount(batchVideos) }}</span>
+            <span class="spacer"></span>
+            <el-button size="small" link @click.stop="toggleGroup('b:'+batchId)">{{ expandedGroups['b:'+batchId]!==false?'折叠':'展开' }}</el-button>
+            <el-button v-if="batchId!=='导入'&&batchId!=='root'" size="small" link type="primary" @click.stop="downloadBatch(batchId)">
+              <el-icon><Download></Download></el-icon> 打包下载
+            </el-button>
           </div>
-        </el-card>
+          <div class="video-grid" v-if="expandedGroups['b:'+batchId]!==false">
+            <el-card v-for="v in batchVideos" :key="v.path" shadow="hover" class="video-card">
+              <video v-if="v.type==='video'" :src="'/api/videos/'+v.path" controls preload="metadata"></video>
+              <div v-else class="img-wrap">
+                <el-image :src="'/api/videos/'+v.path" :preview-src-list="['/api/videos/'+v.path]" preview-teleported fit="contain" lazy></el-image>
+              </div>
+              <div class="info">
+                <div style="font-weight:600;color:var(--el-text-color-primary);">{{ v.filename }}</div>
+                <div>{{ v.size_mb }} MB · {{ v.type==='video'?'视频':'图片' }} · {{ v.kind==='imported'?'导入':'生成' }}</div>
+                <div v-if="v.dialogue" style="color:var(--el-text-color-secondary);" :title="v.dialogue">{{ v.dialogue.slice(0,40) }}{{ v.dialogue.length>40?'...':'' }}</div>
+                <el-button size="small" type="warning" link style="margin-top:4px;" @click="hideVideo(v.path)">隐藏</el-button>
+              </div>
+            </el-card>
+          </div>
+        </div>
+
+        <div class="lib-group" id="lib-__assets__" style="scroll-margin-top:76px;">
+          <div class="lib-group-header" @click="toggleGroup('g:素材图片')">
+            <span class="chev" :class="expandedGroups['g:素材图片']!==false?'open':''"><el-icon><ArrowRight></ArrowRight></el-icon></span>
+            <el-tag size="small" type="primary">素材图片</el-tag>
+            <span class="gmeta">{{ assetImages.length }} 张</span>
+            <span class="spacer"></span>
+            <el-button size="small" link @click.stop="toggleGroup('g:素材图片')">{{ expandedGroups['g:素材图片']!==false?'折叠':'展开' }}</el-button>
+            <el-button size="small" link @click.stop="loadAssets"><el-icon><Refresh></Refresh></el-icon></el-button>
+          </div>
+          <div class="video-grid" v-if="expandedGroups['g:素材图片']!==false">
+            <el-card v-for="img in assetImages" :key="img.path" shadow="hover" class="video-card">
+              <div class="img-wrap">
+                <el-image :src="'/api/assets/images/'+img.path" :preview-src-list="['/api/assets/images/'+img.path]" preview-teleported fit="contain" lazy></el-image>
+              </div>
+              <div class="info">
+                <div style="font-weight:600;color:var(--el-text-color-primary);">{{ img.name }}</div>
+                <div>{{ img.size_mb }} MB</div>
+                <el-button size="small" type="danger" link style="margin-top:4px;" @click="deleteAssetImage(img.path)">删除</el-button>
+              </div>
+            </el-card>
+            <el-empty v-if="!assetImages.length" description="暂无上传的图片素材" :image-size="60" style="grid-column:1/-1"></el-empty>
+          </div>
+        </div>
+
+        <div class="lib-group" v-if="hiddenVideos.length" id="lib-__hidden__" style="scroll-margin-top:76px;">
+          <div class="lib-group-header" @click="toggleGroup('g:已隐藏')">
+            <span class="chev" :class="expandedGroups['g:已隐藏']!==false?'open':''"><el-icon><ArrowRight></ArrowRight></el-icon></span>
+            <el-tag size="small" type="info">已隐藏</el-tag>
+            <span class="gmeta">{{ hiddenVideos.length }} 个</span>
+            <span class="spacer"></span>
+            <el-button size="small" link @click.stop="toggleGroup('g:已隐藏')">{{ expandedGroups['g:已隐藏']!==false?'折叠':'展开' }}</el-button>
+          </div>
+          <div class="video-grid" v-if="expandedGroups['g:已隐藏']!==false">
+            <el-card v-for="v in hiddenVideos" :key="v.path" shadow="hover" class="video-card" style="opacity:.75">
+              <video v-if="v.type==='video'" :src="'/api/videos/'+v.path" controls preload="metadata"></video>
+              <div v-else class="img-wrap">
+                <el-image :src="'/api/videos/'+v.path" :preview-src-list="['/api/videos/'+v.path]" preview-teleported fit="contain" lazy></el-image>
+              </div>
+              <div class="info">
+                <div style="font-weight:600;color:var(--el-text-color-primary);">{{ v.filename }}</div>
+                <div>{{ v.size_mb }} MB · {{ v.type==='video'?'视频':'图片' }} · 已隐藏</div>
+                <el-button size="small" type="primary" link style="margin-top:4px;" @click="unhideVideo(v.path)">恢复显示</el-button>
+                <el-button v-if="v.kind==='imported'" size="small" type="danger" link style="margin-top:4px;" @click="deleteVideo(v.path)">彻底删除</el-button>
+              </div>
+            </el-card>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -435,7 +597,7 @@
         <div class="pane">
           <div style="font-weight:600;margin-bottom:8px;font-size:13px;color:var(--el-text-color-regular);">① 选择视频（按选择顺序合并）</div>
           <div class="pane-list">
-            <div v-for="v in videosList" :key="v.path" class="video-item" role="button" tabindex="0" aria-label="选择 {{ v.filename }}"
+            <div v-for="v in mediaVideos" :key="v.path" class="video-item" role="button" tabindex="0" aria-label="选择 {{ v.filename }}"
                  :style="isMergeSel(v.path)?'border-color:#EC4899;background:rgba(236,72,153,.08)':''"
                  @click="toggleMerge(v)" @keydown.enter.prevent="toggleMerge(v)" @keydown.space.prevent="toggleMerge(v)">
               <div class="thumb-wrap">
@@ -448,7 +610,7 @@
                 <el-tag size="small" v-if="isMergeSel(v.path)" type="primary">已选</el-tag>
               </div>
             </div>
-            <el-empty v-if="!videosList.length" description="镜头库为空" :image-size="80"></el-empty>
+            <el-empty v-if="!mediaVideos.length" description="素材库为空" :image-size="80"></el-empty>
           </div>
         </div>
         <div class="pane">
@@ -493,14 +655,102 @@
     </el-card>
   </div>
 
-  <!-- ═══════════════ 5. 配音字幕 ═══════════════ -->
+
+  <!-- ═══════════════ 批量任务结果（镜头 Review） ═══════════════ -->
+  <div class="main-content" v-if="activeTab==='generate' && reviewBatches.length">
+    <el-card shadow="never" style="margin-top:16px;">
+      <template #header>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-weight:600;">批量任务结果</span>
+          <el-button size="small" @click="loadBatches"><el-icon><Refresh></Refresh></el-icon> 刷新</el-button>
+        </div>
+      </template>
+      <!-- 批次列表 -->
+      <div v-for="b in reviewBatches" :key="b.batch_id"
+           style="display:flex;align-items:center;gap:12px;padding:10px 12px;margin-bottom:8px;
+                  background:var(--el-bg-color-overlay);border-radius:8px;cursor:pointer;"
+           :style="{border: currentBatch===b.batch_id ? '2px solid var(--el-color-primary)' : '1px solid var(--el-border-color-lighter)'}"
+           @click="openReviewPanel(b.batch_id)">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:500;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ b.batch_id }}</div>
+          <div style="font-size:12px;color:var(--el-text-color-secondary);">{{ b.total }} 镜头 · {{ b.done }} 完成 · {{ b.failed }} 失败 · {{ b.confirmed }} 已确认</div>
+        </div>
+        <el-tag size="small" :type="b.finished_at ? 'success' : 'warning'">{{ b.finished_at ? '已完成' : '运行中' }}</el-tag>
+      </div>
+      <div v-if="!reviewBatches.length" style="color:var(--el-text-color-secondary);font-size:13px;text-align:center;padding:20px 0;">暂无批量任务</div>
+
+      <!-- 镜头详情（展开后） -->
+      <div v-if="currentBatch" style="margin-top:16px;border-top:1px solid var(--el-border-color-lighter);padding-top:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <span style="font-weight:600;font-size:14px;">{{ currentBatch }} · 镜头列表</span>
+          <div style="display:flex;gap:8px;">
+            <el-button size="small" @click="confirmAllDone" :disabled="!batchShots.some(s=>s.status==='done')">
+              <el-icon><Check></Check></el-icon> 批量确认
+            </el-button>
+            <el-button size="small" @click="redoFailed" :disabled="!batchShots.some(s=>s.status==='failed')">
+              <el-icon><RefreshRight></RefreshRight></el-icon> 重做失败
+            </el-button>
+            <el-button size="small" type="success" @click="mergeConfirmed" :loading="mergeRunning"
+                       :disabled="!batchShots.some(s=>s.status==='confirmed')">
+              <el-icon><VideoCamera></VideoCamera></el-icon> 合并已确认
+            </el-button>
+            <el-button size="small" @click="closeReviewPanel"><el-icon><Close></Close></el-icon></el-button>
+          </div>
+        </div>
+        <el-table :data="batchShots" size="small" max-height="360" style="width:100%;" v-loading="shotsLoading">
+          <el-table-column prop="key" label="镜号" width="60" />
+          <el-table-column prop="scene_desc" label="场景" min-width="120" show-overflow-tooltip />
+          <el-table-column prop="duration" label="时长" width="60" align="center" />
+          <el-table-column label="状态" width="100" align="center">
+            <template #default="{row}">
+              <el-tag size="small" :type="{
+                pending:'info',analyzing:'warning',selecting:'warning',optimizing:'warning',
+                submitting:'warning',waiting:'warning',reviewing:'warning',
+                done:'success',failed:'danger',confirmed:'success',
+              }[row.status]||'info'">
+                {{ row.status==='confirmed'?'已确认':row.status==='done'?'已完成':row.status==='failed'?'失败':row.status }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="160" align="center">
+            <template #default="{row}">
+              <el-button size="small" link type="primary" @click="openPreview('/api/videos/'+row.video_path)"
+                         :disabled="!row.video_path||row.status==='pending'">
+                <el-icon><VideoPlay></VideoPlay></el-icon> 预览
+              </el-button>
+              <el-button size="small" link type="success" @click="confirmShot(row.key)"
+                         :loading="confirmLoading[row.key]"
+                         :disabled="row.status!=='done'&&row.status!=='confirmed'"
+                         :title="row.status==='done'?'确认':'取消确认'">
+                <el-icon><Check v-if="row.status==='done'"></Check><Close v-else></Close></el-icon>
+                {{ row.status==='done'?'确认':'取消' }}
+              </el-button>
+              <el-button size="small" link type="warning" @click="redoShot(row.key)"
+                         :loading="confirmLoading[row.key]"
+                         :disabled="row.status!=='done'&&row.status!=='failed'&&row.status!=='confirmed'"
+                         title="重做">
+                <el-icon><RefreshRight></RefreshRight></el-icon>
+              </el-button>
+            </template>
+          </el-table-column>
+          <el-table-column label="错误" min-width="150" show-overflow-tooltip>
+            <template #default="{row}">
+              <span v-if="row.error" style="color:var(--el-color-danger);font-size:12px;">{{ row.error }}</span>
+              <span v-else-if="row.video_path" style="font-size:11px;color:var(--el-text-color-placeholder);">{{ row.video_path.split('/').pop() }}</span>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+    </el-card>
+  </div>
+\n  <!-- ═══════════════ 5. 配音字幕 ═══════════════ -->
   <div class="main-content" v-if="activeTab==='dub'">
     <el-card shadow="never" style="max-width:760px;">
       <template #header>视频配音 + 字幕</template>
       <el-form :label-width="isNarrow?'84px':'100px'">
         <el-form-item label="选择视频">
           <el-select v-model="dubVideo" filterable style="width:100%;" placeholder="选择要配音的视频" @change="onDubVideoChange">
-            <el-option v-for="v in videosList" :key="v.path" :value="v.path"
+            <el-option v-for="v in mediaVideos" :key="v.path" :value="v.path"
                        :label="v.filename + (v.dialogue ? '（含台词）' : '')"></el-option>
           </el-select>
         </el-form-item>
@@ -755,14 +1005,14 @@
 const{createApp,ref,reactive,computed,onMounted}=Vue
 const app=createApp({
   setup(){
-    const activeTab=ref('tables')
+    const activeTab=ref('generate')
     const isNarrow=ref(window.matchMedia('(max-width:900px)').matches)
     window.matchMedia('(max-width:900px)').addEventListener('change',e=>isNarrow.value=e.matches)
     const menuDlg=ref(false)
     const menuItems=[
-      {index:'tables',label:'表格',icon:ElementPlusIconsVue.Notebook},
-      {index:'generate',label:'生成',icon:ElementPlusIconsVue.Lightning},
-      {index:'library',label:'镜头库',icon:ElementPlusIconsVue.Film},
+      {index:'generate',label:'视频生成',icon:ElementPlusIconsVue.Lightning},
+      {index:'images',label:'图片生成',icon:ElementPlusIconsVue.Picture},
+      {index:'library',label:'素材库',icon:ElementPlusIconsVue.Film},
       {index:'merge',label:'合并',icon:ElementPlusIconsVue.CopyDocument},
       {index:'dub',label:'配音字幕',icon:ElementPlusIconsVue.Microphone},
       {index:'settings',label:'设置',icon:ElementPlusIconsVue.Setting},
@@ -773,49 +1023,80 @@ const app=createApp({
     const onUploadError=()=>ElementPlus.ElMessage.error('上传失败，请重试')
 
     // ── 表格 ──
-    const tables=ref([]),curTable=ref(''),tableShots=ref([])
+    const tables=ref([]),curTable=ref('')
     const shotDlg=ref(false),shotSaving=ref(false),shotForm=ref({})
+    const tableListOpen=ref(false)
+    const workflowOpts=ref([])
+    const loadWorkflows=async()=>{
+      try{const{data}=await axios.get('/api/templates');workflowOpts.value=data}catch(e){toastError(e,'加载工作流失败')}
+    }
+    const primaryAssetType=row=>{
+      const ff=row?.first_frame||''
+      const assets=row?.assets||[]
+      if(ff || assets.some(a=>a.type==='image'&&a.path))return 'image'
+      return 'ai_generated'
+    }
+    const wfOptionsFor=row=>{
+      const at=primaryAssetType(row)
+      return workflowOpts.value.filter(w=>{
+        const list=w.match_rules?.asset_type||[]
+        if(at==='image'||at==='local')return list.includes('image')||list.includes('local')
+        return list.includes('ai_generated')||list.includes('none')||list.includes('')
+      })
+    }
+    const assetCount=(row,t)=>row?.assets?.filter(a=>a.type===t&&a.path).length||0
+    const allImages=computed(()=>{
+      const gen=videosList.value.filter(v=>v.type==='image').map(v=>({name:v.filename,path:'output/'+v.path}))
+      const as=assetImages.value.map(a=>({name:a.name,path:a.path}))
+      return [...gen,...as]
+    })
+    const imgResults=computed(()=>videosList.value.filter(v=>v.type==='image').sort((a,b)=>b.modified-a.modified).slice(0,20))
+    const imgSrc=p=>{
+      if(!p)return ''
+      return (p.startsWith('output/assets')||p.startsWith('assets/'))?('/api/assets/images/'+p):('/api/videos/'+p)
+    }
+    const patchWorkflow=async row=>{
+      try{await axios.put(`/api/tables/${curTable.value}/shots/${row.id}`,{...row})}
+      catch(e){toastError(e,'保存工作流失败');loadGenShots()}
+    }
     const loadTables=async()=>{
       try{
         const{data}=await axios.get('/api/tables')
         tables.value=data
         if(!curTable.value||!data.find(t=>t.id===curTable.value))curTable.value=data[0]?.id||''
-        if(curTable.value)loadShots()
       }catch(e){toastError(e,'加载表格失败')}
     }
-    const selectTable=id=>{curTable.value=id;loadShots()}
-    const loadShots=async()=>{
-      if(!curTable.value)return
-      try{const{data}=await axios.get(`/api/tables/${curTable.value}/shots`);tableShots.value=data}catch(e){toastError(e,'加载镜头失败')}
-    }
+    const selectTable=id=>{curTable.value=id;tableListOpen.value=false}
     const createTable=async()=>{
       let name=''
       try{name=(await ElementPlus.ElMessageBox.prompt('表格名称','新建表格',{inputValue:'新表格'})).value}catch{return}
-      try{await axios.post('/api/tables',{name});loadTables();ElementPlus.ElMessage.success('已创建')}catch(e){ElementPlus.ElMessage.error(e.response?.data?.detail||'创建失败')}
+      try{await axios.post('/api/tables',{name});loadTables();loadGenShots();ElementPlus.ElMessage.success('已创建')}catch(e){ElementPlus.ElMessage.error(e.response?.data?.detail||'创建失败')}
     }
-    const deleteTable=async id=>{try{await axios.delete(`/api/tables/${id}`);curTable.value='';loadTables();ElementPlus.ElMessage.success('已删除')}catch{ElementPlus.ElMessage.error('删除失败')}}
+    const deleteTable=async id=>{
+      try{await axios.delete(`/api/tables/${id}`);delete genSelected[id];delete genShots[id];curTable.value='';loadTables();loadGenShots();ElementPlus.ElMessage.success('已删除')}catch{ElementPlus.ElMessage.error('删除失败')}
+    }
     const assetImages=ref([])
     const loadAssets=async()=>{try{const{data}=await axios.get('/api/assets/images');assetImages.value=data.images}catch(e){toastError(e,'加载素材失败')}}
     const onAssetUploaded=res=>{ElementPlus.ElMessage.success(res.message||'上传成功');loadAssets()}
-    const openShotDialog=row=>{shotForm.value=row?{...row}:{duration:4,scene_desc:'',dialogue:'',screen_text:'',asset_type:'ai_generated',asset_path:''};loadAssets();shotDlg.value=true}
+    const openShotDialog=row=>{shotForm.value=row?{...row}:{duration:4,scene_desc:'',dialogue:'',screen_text:'',asset_type:'ai_generated',asset_path:'',assets:[],first_frame:'',last_frame:'',workflow_id:''};loadAssets();loadVideos();shotDlg.value=true}
     const saveShot=async()=>{
       shotSaving.value=true
       try{
         if(shotForm.value.id)await axios.put(`/api/tables/${curTable.value}/shots/${shotForm.value.id}`,shotForm.value)
         else await axios.post(`/api/tables/${curTable.value}/shots`,shotForm.value)
-        shotDlg.value=false;loadShots();loadTables();ElementPlus.ElMessage.success('保存成功')
+        shotDlg.value=false;loadGenShots();loadTables();ElementPlus.ElMessage.success('保存成功')
       }catch(e){ElementPlus.ElMessage.error('失败: '+(e.response?.data?.detail||e.message))}
       shotSaving.value=false
     }
-    const deleteShot=async id=>{try{await axios.delete(`/api/tables/${curTable.value}/shots/${id}`);loadShots();loadTables();ElementPlus.ElMessage.success('已删除')}catch{ElementPlus.ElMessage.error('删除失败')}}
-    const onImportSuccess=res=>{ElementPlus.ElMessage.success(res.message||'导入成功');loadShots();loadTables()}
+    const deleteShot=async id=>{try{await axios.delete(`/api/tables/${curTable.value}/shots/${id}`);loadGenShots();loadTables();ElementPlus.ElMessage.success('已删除')}catch{ElementPlus.ElMessage.error('删除失败')}}
+    const onImportSuccess=res=>{ElementPlus.ElMessage.success(res.message||'导入成功');loadGenShots();loadTables()}
     const exportShots=()=>window.open(`/api/tables/${curTable.value}/export`,'_blank')
     const moveShot=async(index,dir)=>{
+      const shots=[...(genShots[curTable.value]||[])]
       const target=index+dir
-      const shots=[...tableShots.value]
       ;[shots[index],shots[target]]=[shots[target],shots[index]]
-      tableShots.value=shots
-      try{await axios.put(`/api/tables/${curTable.value}/shots/reorder`,{ordered_ids:shots.map(s=>s.id)})}catch{loadShots()}
+      genShots[curTable.value]=shots
+      try{await axios.put(`/api/tables/${curTable.value}/shots/reorder`,{ordered_ids:shots.map(s=>s.id)})}catch{loadGenShots()}
     }
 
     // ── 生成 ──
@@ -837,6 +1118,39 @@ const app=createApp({
     const genTotal=computed(()=>Object.values(genSelected).reduce((a,b)=>a+(b?.length||0),0))
 
     const pipelineRunning=ref(false),pipelineStatus=ref({}),pipelineLogs=ref(''),logsLoading=ref(false)
+    const imgPrompt=ref(''),imgCount=ref(1)
+    const runImageGen=async()=>{
+      if(!imgPrompt.value.trim()){ElementPlus.ElMessage.warning('请输入画面描述');return}
+      pipelineRunning.value=true
+      try{
+        await axios.post('/api/images/generate',{prompt:imgPrompt.value,count:imgCount.value})
+        ElementPlus.ElMessage.success('已开始生成')
+        pollStatus()
+      }catch(e){ElementPlus.ElMessage.error(e.response?.data?.detail||'启动失败');pipelineRunning.value=false}
+    }
+    const downloadImg=path=>window.open('/api/videos/'+path,'_blank')
+    const genFrame=async field=>{
+      let desc=''
+      try{desc=(await ElementPlus.ElMessageBox.prompt('描述画面（文生图，将自动填入）','生成'+(field==='first_frame'?'首帧':'尾帧'),{inputValue:''})).value?.trim()}catch{return}
+      if(!desc)return
+      try{await axios.post('/api/images/generate',{prompt:desc,count:1})}
+      catch(e){toastError(e,'启动失败');return}
+      ElementPlus.ElMessage.success('已在后台生成，完成后自动填入')
+      const t0=Date.now()
+      const timer=setInterval(async()=>{
+        if(Date.now()-t0>180000){clearInterval(timer);return}
+        try{
+          await loadVideos()
+          const gens=videosList.value.filter(v=>v.type==='image').sort((a,b)=>b.modified-a.modified)
+          const fresh=gens[0]
+          if(fresh && fresh.modified>=(t0/1000)-2){
+            shotForm.value[field]='output/'+fresh.path
+            ElementPlus.ElMessage.success('已自动填入')
+            clearInterval(timer)
+          }
+        }catch(e){}
+      },3000)
+    }
     const runGenerate=async()=>{
       const selections=Object.keys(genSelected).filter(tid=>genSelected[tid]?.length).map(tid=>({table_id:tid,shot_ids:genSelected[tid]}))
       if(!selections.length){ElementPlus.ElMessage.warning('请先选择镜头');return}
@@ -873,15 +1187,47 @@ const app=createApp({
       logsLoading.value=false
     }
 
-    // ── 镜头库 ──
-    const videosList=ref([]),videoBatches=ref({})
+    // ── 素材库 ──
+    const videosList=ref([]),videoBatches=ref({}),hiddenVideos=ref([])
+    const expandedGroups=reactive({}),navActive=ref('')
+    const mediaVideos=computed(()=>videosList.value.filter(v=>v.type==='video').map(v=>({...v,name:v.filename,path:'output/'+v.path})))
     const loadVideos=async()=>{
-      try{const{data}=await axios.get('/api/videos');videosList.value=data.videos;videoBatches.value=data.batches}catch(e){toastError(e,'加载镜头库失败')}
+      try{
+        const{data}=await axios.get('/api/videos',{params:{include_hidden:1}})
+        videosList.value=data.videos;videoBatches.value=data.batches;hiddenVideos.value=data.hidden||[]
+        loadAssets()
+      }catch(e){toastError(e,'加载素材库失败')}
     }
     const onVideoImported=res=>{ElementPlus.ElMessage.success(res.message||'导入成功');loadVideos()}
+    const navGroups=computed(()=>Object.keys(videoBatches.value).map(id=>({id,name:id,count:videoBatches.value[id].length})))
+    const batchCount=batch=>{
+      const v=batch.filter(x=>x.type==='video').length
+      const i=batch.filter(x=>x.type==='image').length
+      return `${v} 视频 · ${i} 图片`
+    }
+    const toggleGroup=id=>{expandedGroups[id]=expandedGroups[id]===undefined?false:!expandedGroups[id]}
+    const allGroupIds=()=>[
+      ...Object.keys(videoBatches.value).map(id=>'b:'+id),
+      'g:素材图片',
+      ...(hiddenVideos.value.length?['g:已隐藏']:[]),
+    ]
+    const expandAllGroups=()=>{allGroupIds().forEach(id=>expandedGroups[id]=true)}
+    const collapseAllGroups=()=>{allGroupIds().forEach(id=>expandedGroups[id]=false)}
+    const scrollToGroup=id=>{navActive.value=id;document.getElementById('lib-'+id)?.scrollIntoView({behavior:'smooth',block:'start'})}
+    const hideVideo=async path=>{
+      try{await ElementPlus.ElMessageBox.confirm('隐藏后该素材不再显示（文件保留，可随时恢复）','确认隐藏',{type:'warning'})}catch{return}
+      try{const{data}=await axios.post('/api/videos/hide',{path});ElementPlus.ElMessage.success(data.message);loadVideos()}catch(e){ElementPlus.ElMessage.error(e.response?.data?.detail||'隐藏失败')}
+    }
+    const unhideVideo=async path=>{
+      try{const{data}=await axios.post('/api/videos/unhide',{path});ElementPlus.ElMessage.success(data.message);loadVideos()}catch(e){ElementPlus.ElMessage.error(e.response?.data?.detail||'恢复失败')}
+    }
     const deleteVideo=async path=>{
-      try{await ElementPlus.ElMessageBox.confirm('确认删除该视频？','确认',{type:'warning'})}catch{return}
+      try{await ElementPlus.ElMessageBox.confirm('确认物理删除该视频？（仅导入视频，不可恢复）','确认删除',{type:'warning'})}catch{return}
       try{await axios.delete('/api/videos',{params:{path}});loadVideos();ElementPlus.ElMessage.success('已删除')}catch(e){ElementPlus.ElMessage.error(e.response?.data?.detail||'删除失败')}
+    }
+    const deleteAssetImage=async path=>{
+      try{await ElementPlus.ElMessageBox.confirm('确认物理删除该图片素材？（不可恢复）','确认删除',{type:'warning'})}catch{return}
+      try{const{data}=await axios.delete('/api/assets/images',{params:{path}});ElementPlus.ElMessage.success(data.message);loadAssets()}catch(e){ElementPlus.ElMessage.error(e.response?.data?.detail||'删除失败')}
     }
     const downloadBatch=id=>window.open(`/api/batches/${id}/download`,'_blank')
 
@@ -922,7 +1268,7 @@ const app=createApp({
     const dubVideo=ref(''),dubScript=ref(''),dubVoice=ref(''),dubRate=ref('+0%')
     const dubRunning=ref(false),dubResult=ref('')
     const onDubVideoChange=path=>{
-      const v=videosList.value.find(x=>x.path===path)
+      const v=mediaVideos.value.find(x=>x.path===path)
       dubScript.value=v?.dialogue||''
     }
     const runDub=async()=>{
@@ -966,10 +1312,126 @@ const app=createApp({
       sysLoading.value=false
     }
 
+    // ═══════════════════════════════════════════════════════
+    // 镜头 Review & 重做（SSE 实时进度）
+    // ═══════════════════════════════════════════════════════
+    const reviewBatches=ref([])      // [{batch_id, started_at, total, done, failed, confirmed}]
+    const currentBatch=ref(null)     // 当前查看的 batch_id
+    const batchShots=ref([])         // 当前 batch 的所有 shot 状态
+    const shotsLoading=ref(false)
+    const confirmLoading=ref({})     // {shot_key: bool} 防止重复点击
+    let evtSource=null
+
+    // 加载批次列表
+    const loadBatches=async()=>{
+      try{const{data}=await axios.get('/api/pipeline/batches');reviewBatches.value=data.batches||[]}
+      catch(e){toastError(e,'加载批次列表失败')}
+    }
+
+    // 加载某个 batch 的 shots
+    const loadBatchShots=async(batchId)=>{
+      currentBatch.value=batchId
+      shotsLoading.value=true
+      try{const{data}=await axios.get(`/api/pipeline/batches/${batchId}/shots`);batchShots.value=data.shots||[]}
+      catch(e){toastError(e,'加载镜头失败')}
+      shotsLoading.value=false
+    }
+
+    // 确认/取消确认
+    const confirmShot=async(shotKey)=>{
+      if(confirmLoading.value[shotKey])return
+      confirmLoading.value[shotKey]=true
+      try{
+        const shot=batchShots.value.find(s=>s.key===shotKey)
+        if(!shot)return
+        if(shot.status==='done'){
+          await axios.post(`/api/pipeline/batches/${currentBatch.value}/shots/${shotKey}/confirm`)
+          shot.status='confirmed'
+        }else if(shot.status==='confirmed'){
+          await axios.post(`/api/pipeline/batches/${currentBatch.value}/shots/${shotKey}/unconfirm`)
+          shot.status='done'
+        }
+      }catch(e){toastError(e,'操作失败')}
+      confirmLoading.value[shotKey]=false
+    }
+
+    // 批量确认所有 done 的镜头
+    const confirmAllDone=async()=>{
+      const doneShots=batchShots.value.filter(s=>s.status==='done')
+      for(const s of doneShots)await confirmShot(s.key)
+    }
+
+    // 重做镜头
+    const redoShot=async(shotKey)=>{
+      if(confirmLoading.value[shotKey])return
+      confirmLoading.value[shotKey]=true
+      try{
+        await axios.post(`/api/pipeline/batches/${currentBatch.value}/shots/${shotKey}/redo`)
+        // shot 状态重置为 pending，SSE 会更新
+      }catch(e){toastError(e,'重做失败')}
+      confirmLoading.value[shotKey]=false
+    }
+
+    // 重做所有失败镜头
+    const redoFailed=async()=>{
+      const failed=batchShots.value.filter(s=>s.status==='failed')
+      for(const s of failed)await redoShot(s.key)
+    }
+
+    // 合并已确认镜头
+    const mergeRunning=ref(false)
+    const mergeConfirmed=async()=>{
+      mergeRunning.value=true
+      try{
+        const{data}=await axios.post(`/api/pipeline/batches/${currentBatch.value}/merge`)
+        ElementPlus.ElMessage.success(`合并已启动：${data.message}`)
+        pollStatus() // 刷新 pipeline 状态
+      }catch(e){toastError(e,'合并失败')}
+      mergeRunning.value=false
+    }
+
+    // SSE 订阅当前 batch
+    const subscribeSSE=(batchId)=>{
+      if(evtSource){evtSource.close();evtSource=null}
+      evtSource=new EventSource(`/api/pipeline/batches/${batchId}/events`)
+      evtSource.addEventListener('shot_update',e=>{
+        try{
+          const d=JSON.parse(e.data)
+          const key=d.shot_key
+          const shot=batchShots.value.find(s=>s.key===key)
+          if(shot && d.fields){
+            Object.assign(shot,d.fields)
+          }
+        }catch{}
+      })
+      evtSource.addEventListener('batch_done',e=>{
+        // batch 结束，关闭 SSE，刷新列表
+        if(evtSource){evtSource.close();evtSource=null}
+        loadBatches()
+      })
+      evtSource.onerror=()=>{
+        // 断线自动重连（简单重试）
+        setTimeout(()=>subscribeSSE(batchId),3000)
+      }
+    }
+
+    // 打开 review 面板时订阅
+    const openReviewPanel=async(batchId)=>{
+      await loadBatchShots(batchId)
+      subscribeSSE(batchId)
+    }
+
+    // 关闭时断开
+    const closeReviewPanel=()=>{
+      if(evtSource){evtSource.close();evtSource=null}
+      currentBatch.value=null
+      batchShots.value=[]
+    }
+
     const switchTab=tab=>{
       activeTab.value=tab
-      if(tab==='tables')loadTables()
       if(tab==='generate'){loadTables();loadGenShots();pollStatus()}
+      if(tab==='images'){loadVideos()}
       if(tab==='library')loadVideos()
       if(tab==='merge')loadVideos()
       if(tab==='dub')loadVideos()
@@ -977,21 +1439,29 @@ const app=createApp({
       if(tab==='system')loadSystem()
     }
 
-    onMounted(()=>{loadTables();loadSystem()})
+    onMounted(()=>{loadTables();loadGenShots();loadWorkflows();loadSystem();loadBatches()})
 
     return{
       activeTab,switchTab,isNarrow,menuDlg,menuItems,onUploadError,
-      tables,curTable,tableShots,shotDlg,shotSaving,shotForm,
+      tables,curTable,shotDlg,shotSaving,shotForm,tableListOpen,
+      workflowOpts,wfOptionsFor,patchWorkflow,
       loadTables,selectTable,createTable,deleteTable,openShotDialog,saveShot,deleteShot,onImportSuccess,exportShots,moveShot,
       assetImages,loadAssets,onAssetUploaded,
+      imgPrompt,imgCount,imgResults,runImageGen,downloadImg,genFrame,imgSrc,assetCount,allImages,
       genShots,genSelected,genName,genTotal,loadGenShots,toggleGen,selectAllInTable,
       pipelineRunning,pipelineStatus,pipelineLogs,logsLoading,runGenerate,refreshLogs,
-      videosList,videoBatches,loadVideos,onVideoImported,deleteVideo,downloadBatch,
+      videosList,videoBatches,hiddenVideos,mediaVideos,loadVideos,onVideoImported,deleteVideo,downloadBatch,
+      navGroups,batchCount,toggleGroup,expandAllGroups,collapseAllGroups,scrollToGroup,navActive,expandedGroups,
+      hideVideo,unhideVideo,deleteAssetImage,
       mergeSel,mergeMode,mergeDur,mergeName,mergeRunning,mergeResult,isMergeSel,toggleMerge,mergeMove,mergeRemove,runMerge,
       previewDlg,previewVideo,openPreview,
       dubVideo,dubScript,dubVoice,dubRate,dubRunning,dubResult,onDubVideoChange,runDub,
       cfg,cfgLoading,cfgSaving,cfgResetting,templates,openPanels,kwMapText,saveResultDlg,saveResult,tplDlg,tplDlgContent,loadCfg,saveCfg,resetCfg,viewTpl,onTplImported,
       sysData,sysLoading,comfyOnline,loadSystem,
+      // Review & 重做
+      reviewBatches,currentBatch,batchShots,shotsLoading,confirmLoading,
+      loadBatches,loadBatchShots,confirmShot,confirmAllDone,redoShot,redoFailed,mergeConfirmed,mergeRunning,
+      openReviewPanel,closeReviewPanel,
     }
   }
 })

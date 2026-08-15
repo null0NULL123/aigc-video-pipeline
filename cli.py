@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from pipeline.input_reader import read_shots
-from pipeline.generator import run_batch
+from pipeline.generator import run_batch, set_current_batch_id
 from pipeline.comfyui import ComfyUIClient
 from pipeline.registry import TemplateRegistry
 from pipeline import merge as merge_pipeline
@@ -96,6 +96,7 @@ async def async_main(args):
         batch_id = f"{batch_prefix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
     config["_batch_id"] = batch_id
+    set_current_batch_id(batch_id)
     ensure_dirs(config)
     log.info(f"批次编号: {batch_id}")
 
