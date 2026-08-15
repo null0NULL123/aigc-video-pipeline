@@ -30,7 +30,12 @@ def test_frontend_media_paths_are_relative_to_output(client):
     normalized = html.replace(" ", "")
     assert "path:'output/'+v.path" not in normalized
     assert 'path:"output/"+v.path' not in normalized
-    assert "path:v.path" in normalized
+    # main.js 是外置脚本，也要检查同样的规则
+    js = client.get("/static/main.js").text
+    assert js, "main.js 应当可访问"
+    assert "path:'output/'+v.path" not in js
+    assert 'path:"output/"+v.path' not in js
+    assert "path:v.path" in js
 
 
 def test_static_missing_file(client):
