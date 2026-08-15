@@ -14,6 +14,15 @@ def test_static_index(client):
     assert "text/html" in r.headers["content-type"]
 
 
+def test_frontend_media_paths_are_relative_to_output(client):
+    """视频 API 已以 output/ 为根；前端不可再额外拼 output/。"""
+    html = client.get("/").text
+    normalized = html.replace(" ", "")
+    assert "path:'output/'+v.path" not in normalized
+    assert 'path:"output/"+v.path' not in normalized
+    assert "path:v.path" in normalized
+
+
 def test_static_missing_file(client):
     r = client.get("/static/no-such-file.js")
     assert r.status_code == 404

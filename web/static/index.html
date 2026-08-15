@@ -1046,14 +1046,17 @@ const app=createApp({
     }
     const assetCount=(row,t)=>row?.assets?.filter(a=>a.type===t&&a.path).length||0
     const allImages=computed(()=>{
-      const gen=videosList.value.filter(v=>v.type==='image').map(v=>({name:v.filename,path:'output/'+v.path}))
+      // /api/videos 返回的 path 已相对 output/；不要再拼 output/。
+      const gen=videosList.value.filter(v=>v.type==='image').map(v=>({name:v.filename,path:v.path}))
       const as=assetImages.value.map(a=>({name:a.name,path:a.path}))
       return [...gen,...as]
     })
     const imgResults=computed(()=>videosList.value.filter(v=>v.type==='image').sort((a,b)=>b.modified-a.modified).slice(0,20))
     const imgSrc=p=>{
       if(!p)return ''
-      return (p.startsWith('output/assets')||p.startsWith('assets/'))?('/api/assets/images/'+p):('/api/videos/'+p)
+      // 素材库路径由 assets API 服务；其它生成图片由 videos API 服务。
+      const rel=p.replace(/^output\//,'')
+      return (rel.startsWith('assets/')||p.startsWith('output/assets'))?('/api/assets/images/'+rel):('/api/videos/'+rel)
     }
     const patchWorkflow=async row=>{
       try{await axios.put(`/api/tables/${curTable.value}/shots/${row.id}`,{...row})}
@@ -1190,7 +1193,8 @@ const app=createApp({
     // ── 素材库 ──
     const videosList=ref([]),videoBatches=ref({}),hiddenVideos=ref([])
     const expandedGroups=reactive({}),navActive=ref('')
-    const mediaVideos=computed(()=>videosList.value.filter(v=>v.type==='video').map(v=>({...v,name:v.filename,path:'output/'+v.path})))
+    // API 返回的 path 已相对 output/；合并、配音和 /api/videos 都使用这个相对路径。
+    const mediaVideos=computed(()=>videosList.value.filter(v=>v.type==='video').map(v=>({...v,name:v.filename})))
     const loadVideos=async()=>{
       try{
         const{data}=await axios.get('/api/videos',{params:{include_hidden:1}})
