@@ -14,6 +14,16 @@ def test_static_index(client):
     assert "text/html" in r.headers["content-type"]
 
 
+def test_frontend_simplified_navigation_has_no_dub_or_system_pages(client):
+    """配音字幕/系统是后端能力，不应再作为独立主导航页面。"""
+    html = client.get("/").text
+    assert 'index="dub"' not in html
+    assert 'index="system"' not in html
+    assert "activeTab==='dub'" not in html
+    assert "activeTab==='system'" not in html
+    assert "/api/dub" not in html
+
+
 def test_frontend_media_paths_are_relative_to_output(client):
     """视频 API 已以 output/ 为根；前端不可再额外拼 output/。"""
     html = client.get("/").text

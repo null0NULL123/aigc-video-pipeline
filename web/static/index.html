@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="aigc-video 视频生成管理面板：表格与批量生成、素材库、视频合并、配音字幕与系统监控">
+  <meta name="description" content="aigc-video 视频生成工作台：分镜编辑、批量生成、镜头审核与成片合并">
   <meta name="theme-color" content="#0F172A">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23EC4899'/%3E%3Cstop offset='1' stop-color='%232563EB'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M13 10l9 6-9 6z' fill='%23fff'/%3E%3C/svg%3E">
   <title>aigc-video 管理面板</title>
@@ -215,9 +215,7 @@
         <el-menu-item index="generate"><el-icon><Lightning></Lightning></el-icon><span>生成</span></el-menu-item>
         <el-menu-item index="library"><el-icon><Film></Film></el-icon><span>素材库</span></el-menu-item>
         <el-menu-item index="merge"><el-icon><copy-document></copy-document></el-icon><span>合并</span></el-menu-item>
-        <el-menu-item index="dub"><el-icon><Microphone></Microphone></el-icon><span>配音字幕</span></el-menu-item>
         <el-menu-item index="settings"><el-icon><Setting></Setting></el-icon><span>设置</span></el-menu-item>
-        <el-menu-item index="system"><el-icon><data-line></data-line></el-icon><span>系统</span></el-menu-item>
       </el-menu>
     </div>
     <div class="comfy-pill" :title="comfyOnline?'ComfyUI 在线':'ComfyUI 离线'">
@@ -743,40 +741,6 @@
       </div>
     </el-card>
   </div>
-\n  <!-- ═══════════════ 5. 配音字幕 ═══════════════ -->
-  <div class="main-content" v-if="activeTab==='dub'">
-    <el-card shadow="never" style="max-width:760px;">
-      <template #header>视频配音 + 字幕</template>
-      <el-form :label-width="isNarrow?'84px':'100px'">
-        <el-form-item label="选择视频">
-          <el-select v-model="dubVideo" filterable style="width:100%;" placeholder="选择要配音的视频" @change="onDubVideoChange">
-            <el-option v-for="v in mediaVideos" :key="v.path" :value="v.path"
-                       :label="v.filename + (v.dialogue ? '（含台词）' : '')"></el-option>
-          </el-select>
-        </el-form-item>
-        <el-form-item label="台词文本">
-          <el-input v-model="dubScript" type="textarea" :rows="6" placeholder="输入要配音的文字；选择生成的镜头会自动带出表格中的台词，可修改"></el-input>
-        </el-form-item>
-        <el-form-item label="音色">
-          <el-input v-model="dubVoice" placeholder="zh-CN-XiaoxiaoNeural"></el-input>
-        </el-form-item>
-        <el-form-item label="语速">
-          <el-input v-model="dubRate" placeholder="+0%"></el-input>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" :loading="dubRunning" :disabled="dubRunning||!dubVideo||!dubScript.trim()" @click="runDub">
-            生成配音字幕
-          </el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
-
-    <el-card shadow="never" style="margin-top:16px;max-width:760px;" v-if="dubResult">
-      <template #header>配音结果</template>
-      <video :src="'/api/videos/'+dubResult" controls style="width:100%;max-height:400px;border-radius:6px;background:#000;"></video>
-    </el-card>
-  </div>
-
   <!-- ═══════════════ 设置 ═══════════════ -->
   <div class="main-content" v-if="activeTab==='settings'">
     <div v-if="cfgLoading" style="text-align:center;padding:80px 0;">
@@ -939,56 +903,6 @@
     </div>
   </div>
 
-  <!-- ═══════════════ 系统状态 ═══════════════ -->
-  <div class="main-content" v-if="activeTab==='system'">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <h3>系统状态</h3>
-      <el-button @click="loadSystem" :loading="sysLoading"><el-icon><Refresh></Refresh></el-icon> 刷新</el-button>
-    </div>
-
-    <div class="stat-row">
-      <div class="stat-item">
-        <div class="val" :style="{color:comfyOnline?'var(--el-color-success)':'var(--el-color-danger)'}">{{ comfyOnline?'在线':'离线' }}</div>
-        <div class="label">ComfyUI</div>
-      </div>
-      <div class="stat-item" v-if="sysData.disk">
-        <div class="val">{{ sysData.disk.disk_free_gb }} GB</div>
-        <div class="label">剩余空间</div>
-      </div>
-      <div class="stat-item" v-if="sysData.disk">
-        <div class="val">{{ sysData.disk.output_size_mb }} MB</div>
-        <div class="label">输出目录</div>
-      </div>
-      <div class="stat-item" v-if="sysData.disk">
-        <div class="val">{{ sysData.disk.disk_percent }}%</div>
-        <div class="label">磁盘使用率</div>
-      </div>
-    </div>
-
-    <el-card shadow="never" class="status-card" v-if="sysData.comfyui">
-      <template #header>ComfyUI 详情</template>
-      <el-descriptions :column="2" border size="small">
-        <el-descriptions-item label="地址">{{ sysData.comfyui.host }}</el-descriptions-item>
-        <el-descriptions-item label="状态">
-          <el-tag :type="sysData.comfyui.online?'success':'danger'">{{ sysData.comfyui.online?'在线':'离线' }}</el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="错误" v-if="!sysData.comfyui.online">{{ sysData.comfyui.error }}</el-descriptions-item>
-      </el-descriptions>
-    </el-card>
-
-    <el-card shadow="never" class="status-card" v-if="sysData.latest_batch">
-      <template #header>最近运行</template>
-      <el-descriptions :column="2" border size="small">
-        <el-descriptions-item label="批次">{{ sysData.latest_batch.batch_id }}</el-descriptions-item>
-        <el-descriptions-item label="镜头数">{{ sysData.latest_batch.shots_count }}</el-descriptions-item>
-        <el-descriptions-item label="最终视频">
-          <el-tag :type="sysData.latest_batch.has_final?'success':'warning'">{{ sysData.latest_batch.has_final?'已生成':'未生成' }}</el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="时间">{{ sysData.latest_batch.created_at }}</el-descriptions-item>
-      </el-descriptions>
-    </el-card>
-  </div>
-
   <!-- 弹窗 -->
   <el-dialog v-model="previewDlg" :title="previewVideo?.filename || '视频预览'" :width="isNarrow?'94vw':'760px'" top="5vh" destroy-on-close>
     <video v-if="previewVideo" :src="'/api/videos/'+previewVideo.path" controls autoplay style="width:100%;max-height:65vh;border-radius:8px;background:#000;"></video>
@@ -1014,9 +928,7 @@ const app=createApp({
       {index:'images',label:'图片生成',icon:ElementPlusIconsVue.Picture},
       {index:'library',label:'素材库',icon:ElementPlusIconsVue.Film},
       {index:'merge',label:'合并',icon:ElementPlusIconsVue.CopyDocument},
-      {index:'dub',label:'配音字幕',icon:ElementPlusIconsVue.Microphone},
       {index:'settings',label:'设置',icon:ElementPlusIconsVue.Setting},
-      {index:'system',label:'系统',icon:ElementPlusIconsVue.DataLine},
     ]
     const errMsg=e=>e?.response?.data?.detail||e?.message||'请求失败'
     const toastError=(e,prefix='操作失败')=>ElementPlus.ElMessage.error(`${prefix}：${errMsg(e)}`)
@@ -1268,27 +1180,6 @@ const app=createApp({
       mergeRunning.value=false
     }
 
-    // ── 配音字幕 ──
-    const dubVideo=ref(''),dubScript=ref(''),dubVoice=ref(''),dubRate=ref('+0%')
-    const dubRunning=ref(false),dubResult=ref('')
-    const onDubVideoChange=path=>{
-      const v=mediaVideos.value.find(x=>x.path===path)
-      dubScript.value=v?.dialogue||''
-    }
-    const runDub=async()=>{
-      dubRunning.value=true;dubResult.value=''
-      try{
-        const{data}=await axios.post('/api/dub',{
-          video_path:dubVideo.value,script:dubScript.value,
-          voice:dubVoice.value||undefined,rate:dubRate.value||undefined,
-        })
-        dubResult.value=data.path
-        ElementPlus.ElMessage.success(data.message)
-        loadVideos()
-      }catch(e){ElementPlus.ElMessage.error(e.response?.data?.detail||e.message)}
-      dubRunning.value=false
-    }
-
     // ── 设置 ──
     const cfg=ref({}),cfgLoading=ref(true),cfgSaving=ref(false),cfgResetting=ref(false)
     const templates=ref([]),openPanels=ref(['models','media','paths','agent','templates'])
@@ -1308,12 +1199,10 @@ const app=createApp({
     const viewTpl=async id=>{try{const{data}=await axios.get(`/api/templates/${id}`);tplDlgContent.value=JSON.stringify(data,null,2);tplDlg.value=true}catch(e){toastError(e,'加载模板失败')}}
     const onTplImported=res=>{ElementPlus.ElMessage.success(res.message||'导入成功');loadTpls()}
 
-    // ── 系统 ──
-    const sysData=ref({}),sysLoading=ref(false),comfyOnline=ref(false)
+    // ── 顶栏服务状态 ──
+    const comfyOnline=ref(false)
     const loadSystem=async()=>{
-      sysLoading.value=true
-      try{const{data}=await axios.get('/api/system/status');sysData.value=data;comfyOnline.value=data.comfyui?.online||false}catch(e){toastError(e,'加载系统状态失败')}
-      sysLoading.value=false
+      try{const{data}=await axios.get('/api/system/status');comfyOnline.value=data.comfyui?.online||false}catch{comfyOnline.value=false}
     }
 
     // ═══════════════════════════════════════════════════════
@@ -1437,9 +1326,7 @@ const app=createApp({
       if(tab==='images'){loadVideos()}
       if(tab==='library')loadVideos()
       if(tab==='merge')loadVideos()
-      if(tab==='dub')loadVideos()
       if(tab==='settings'){loadCfg();loadTpls()}
-      if(tab==='system')loadSystem()
     }
 
     onMounted(()=>{loadTables();loadGenShots();loadWorkflows();loadSystem();loadBatches()})
@@ -1458,9 +1345,8 @@ const app=createApp({
       hideVideo,unhideVideo,deleteAssetImage,
       mergeSel,mergeMode,mergeDur,mergeName,mergeRunning,mergeResult,isMergeSel,toggleMerge,mergeMove,mergeRemove,runMerge,
       previewDlg,previewVideo,openPreview,
-      dubVideo,dubScript,dubVoice,dubRate,dubRunning,dubResult,onDubVideoChange,runDub,
       cfg,cfgLoading,cfgSaving,cfgResetting,templates,openPanels,kwMapText,saveResultDlg,saveResult,tplDlg,tplDlgContent,loadCfg,saveCfg,resetCfg,viewTpl,onTplImported,
-      sysData,sysLoading,comfyOnline,loadSystem,
+      comfyOnline,
       // Review & 重做
       reviewBatches,currentBatch,batchShots,shotsLoading,confirmLoading,
       loadBatches,loadBatchShots,confirmShot,confirmAllDone,redoShot,redoFailed,mergeConfirmed,mergeRunning,
