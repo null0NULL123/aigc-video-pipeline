@@ -1378,8 +1378,7 @@ const app=createApp({
       for(const s of failed)await redoShot(s.key)
     }
 
-    // 合并已确认镜头
-    const mergeRunning=ref(false)
+    // 合并已确认镜头（复用上面的 mergeRunning ref）
     const mergeConfirmed=async()=>{
       mergeRunning.value=true
       try{
