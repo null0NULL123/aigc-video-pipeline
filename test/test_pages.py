@@ -24,6 +24,26 @@ def test_frontend_simplified_navigation_has_no_dub_or_system_pages(client):
     assert "/api/dub" not in html
 
 
+def test_topbar_menu_is_data_driven(client):
+    """顶部菜单必须由 menuItems 数据驱动，不允许重新硬编码漏掉某个 tab。"""
+    html = client.get("/").text
+    js = client.get("/static/main.js").text
+    assert js, "main.js 应当可访问"
+
+    # 模板里必须用 v-for 渲染菜单
+    assert 'v-for="m in menuItems"' in html, "顶部菜单没切换到 v-for 渲染"
+
+    # 模板里不应再硬编码 5 个 index（A 图像通过 v-for 渲染 → 模板里 0 个 index="X"）
+    for idx in ("generate", "images", "library", "merge", "settings"):
+        assert ('index="' + idx + '"') not in html, (
+            "顶部菜单发现硬编码 index=" + idx + "，应当由 v-for 渲染"
+        )
+
+    # menuItems 数组必须包含 5 项；少一个就退化
+    for idx in ("generate", "images", "library", "merge", "settings"):
+        assert ("index:'" + idx + "'") in js, "menuItems 缺少 " + idx
+
+
 def test_frontend_media_paths_are_relative_to_output(client):
     """视频 API 已以 output/ 为根；前端不可再额外拼 output/。"""
     html = client.get("/").text

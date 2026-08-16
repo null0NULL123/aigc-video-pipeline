@@ -25,10 +25,7 @@
     <el-button class="menu-toggle" text aria-label="打开菜单" @click="menuDlg=true"><el-icon :size="20"><Fold></Fold></el-icon></el-button>
     <div class="top-nav">
       <el-menu mode="horizontal" :default-active="activeTab" @select="switchTab($event)" :ellipsis="false" style="border:none;flex:1;">
-        <el-menu-item index="generate"><el-icon><Lightning></Lightning></el-icon><span>生成</span></el-menu-item>
-        <el-menu-item index="library"><el-icon><Film></Film></el-icon><span>素材库</span></el-menu-item>
-        <el-menu-item index="merge"><el-icon><copy-document></copy-document></el-icon><span>合并</span></el-menu-item>
-        <el-menu-item index="settings"><el-icon><Setting></Setting></el-icon><span>设置</span></el-menu-item>
+        <el-menu-item v-for="m in menuItems" :key="m.index" :index="m.index"><el-icon><component :is="m.icon"></component></el-icon><span>{{ m.label }}</span></el-menu-item>
       </el-menu>
     </div>
     <div class="comfy-pill" :title="comfyOnline?'ComfyUI 在线':'ComfyUI 离线'">
