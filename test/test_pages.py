@@ -76,6 +76,19 @@ def test_frontend_media_paths_are_relative_to_output(client):
     assert "path:v.path" in js
 
 
+def test_ffmpeg_font_field_uses_font_family(client):
+    """回归：UI 字体字段必须绑定后端真实读取的 font_family，禁止再绑到 ffmpeg.font（历史命名 bug）。"""
+    html = client.get("/").text
+    # 必须存在正确绑定
+    assert 'v-model="cfg.ffmpeg.font_family"' in html, (
+        "设置页必须暴露 cfg.ffmpeg.font_family 字段（后端 merge.py 真实读取）"
+    )
+    # 禁止出现历史错位字段
+    assert 'v-model="cfg.ffmpeg.font"' not in html, (
+        "检测到历史命名 bug：UI 不能绑 cfg.ffmpeg.font（后端读的是 font_family）"
+    )
+
+
 def test_static_missing_file(client):
     r = client.get("/static/no-such-file.js")
     assert r.status_code == 404

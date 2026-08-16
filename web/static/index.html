@@ -585,8 +585,9 @@
         <el-collapse-item name="media">
           <template #title><el-icon><video-camera></video-camera></el-icon>&nbsp; 视频与音频</template>
           <el-form :label-width="isNarrow?'96px':'140px'" class="config-form">
-<div class="group-title">FFmpeg</div>
+            <div class="group-title">FFmpeg</div>
             <el-form-item label="CRF"><el-input-number v-model="cfg.ffmpeg.crf" :min="0" :max="51"></el-input-number></el-form-item>
+            <el-form-item label="字体"><el-input v-model="cfg.ffmpeg.font_family" placeholder="Microsoft YaHei"></el-input></el-form-item>
             <el-form-item label="字号"><el-input-number v-model="cfg.ffmpeg.font_size" :min="12" :max="120"></el-input-number></el-form-item>
             <div class="group-title">字幕样式</div>
             <el-form-item label="字体颜色"><el-input v-model="cfg.ffmpeg.subtitle.font_color" placeholder="FFFFFF"></el-input></el-form-item>
