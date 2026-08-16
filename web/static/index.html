@@ -300,17 +300,18 @@
             <el-button link size="small" @click="collapseAllGroups">全部折叠</el-button>
           </span>
         </div>
-        <div v-for="g in navGroups" :key="g.id" class="nav-item" :class="{active:navActive===g.id}" @click="scrollToGroup(g.id)">
-          <span class="nm">{{ g.name }}</span>
-          <span class="cnt">{{ g.count }}</span>
-        </div>
-        <div class="nav-item" :class="{active:navActive==='__assets__'}" @click="scrollToGroup('__assets__')">
-          <span class="nm">素材图片</span>
-          <span class="cnt">{{ assetImages.length }}</span>
-        </div>
-        <div class="nav-item" v-if="hiddenVideos.length" :class="{active:navActive==='__hidden__'}" @click="scrollToGroup('__hidden__')">
-          <span class="nm">已隐藏</span>
-          <span class="cnt">{{ hiddenVideos.length }}</span>
+        <div v-for="g in navGroups" :key="g.id" class="nav-group-block">
+          <div class="nav-group" @click="toggleGroup(g.id)">
+            <span class="chev" :class="expandedGroups[g.id]!==false?'open':''"><el-icon><ArrowRight></ArrowRight></el-icon></span>
+            <span class="nm">{{ g.name }}</span>
+            <span class="cnt">共 {{ g.total }}</span>
+          </div>
+          <div class="nav-children" v-if="expandedGroups[g.id]!==false">
+            <div v-for="c in g.children" :key="c.id" class="nav-item" :class="{active:navActive===c.id}" @click="scrollToGroup(c.id)">
+              <span class="nm">{{ c.name }}</span>
+              <span class="cnt">{{ c.count }}</span>
+            </div>
+          </div>
         </div>
       </div>
 

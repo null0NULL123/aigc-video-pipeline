@@ -24,6 +24,24 @@ def test_frontend_simplified_navigation_has_no_dub_or_system_pages(client):
     assert "/api/dub" not in html
 
 
+def test_navigation_has_two_type_groups(client):
+    """素材库导航必须是顶级 + 子级 两层结构，分为视频素材/图片素材两组。"""
+    html = client.get("/").text
+    js = client.get("/static/main.js").text
+    assert js, "main.js 应当可访问"
+    # 模板: 有 nav-group 顶级组容器 + nav-children 子级容器
+    assert "nav-group" in html, "模板没有 nav-group 顶级组样式"
+    assert "nav-children" in html, "模板没有 nav-children 子级容器"
+    # main.js: 数据层定义了'视频素材'/'图片素材'两个顶级组
+    assert "'视频素材'" in js, "main.js 没有'视频素材'顶级组"
+    assert "'图片素材'" in js, "main.js 没有'图片素材'顶级组"
+    # 顶级组 id 用 type:video / type:image
+    assert "'type:video'" in js, "main.js 没有 type:video 顶级 id"
+    assert "'type:image'" in js, "main.js 没有 type:image 顶级 id"
+    # 子级 batch id 用 b: 前缀
+    assert "'b:'+batchId" in js, "main.js 没有 batchId 前缀逻辑"
+
+
 def test_topbar_menu_is_data_driven(client):
     """顶部菜单必须由 menuItems 数据驱动，不允许重新硬编码漏掉某个 tab。"""
     html = client.get("/").text

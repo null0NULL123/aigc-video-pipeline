@@ -197,21 +197,46 @@ const app=createApp({
       }catch(e){toastError(e,'加载素材库失败')}
     }
     const onVideoImported=res=>{ElementPlus.ElMessage.success(res.message||'导入成功');loadVideos()}
-    const navGroups=computed(()=>Object.keys(videoBatches.value).map(id=>({id,name:id,count:videoBatches.value[id].length})))
+    // 顶级类型组：视频素材 / 图片素材；子级是各 batch + 素材图片 + 已隐藏
+    const navGroups=computed(()=>{
+      const videoChildren=[]
+      const imageChildren=[]
+      for(const[batchId,items]of Object.entries(videoBatches.value)){
+        const vCount=items.filter(x=>x.type==='video').length
+        const iCount=items.filter(x=>x.type==='image').length
+        if(vCount>0)videoChildren.push({id:'b:'+batchId,name:batchId,count:vCount})
+        if(iCount>0)imageChildren.push({id:'b:'+batchId,name:batchId,count:iCount})
+      }
+      if(assetImages.value.length)imageChildren.push({id:'g:__assets__',name:'素材图片',count:assetImages.value.length})
+      if(hiddenVideos.value.length)videoChildren.push({id:'g:__hidden__',name:'已隐藏',count:hiddenVideos.value.length})
+      const sum=a=>a.reduce((t,c)=>t+c.count,0)
+      return[
+        {id:'type:video',name:'视频素材',total:sum(videoChildren),children:videoChildren},
+        {id:'type:image',name:'图片素材',total:sum(imageChildren),children:imageChildren},
+      ]
+    })
     const batchCount=batch=>{
       const v=batch.filter(x=>x.type==='video').length
       const i=batch.filter(x=>x.type==='image').length
       return `${v} 视频 · ${i} 图片`
     }
     const toggleGroup=id=>{expandedGroups[id]=expandedGroups[id]===undefined?false:!expandedGroups[id]}
-    const allGroupIds=()=>[
-      ...Object.keys(videoBatches.value).map(id=>'b:'+id),
-      'g:素材图片',
-      ...(hiddenVideos.value.length?['g:已隐藏']:[]),
-    ]
+    const allGroupIds=()=>{
+      const ids=[]
+      for(const g of navGroups.value){
+        ids.push(g.id)
+        for(const c of g.children)ids.push(c.id)
+      }
+      return ids
+    }
     const expandAllGroups=()=>{allGroupIds().forEach(id=>expandedGroups[id]=true)}
     const collapseAllGroups=()=>{allGroupIds().forEach(id=>expandedGroups[id]=false)}
-    const scrollToGroup=id=>{navActive.value=id;document.getElementById('lib-'+id)?.scrollIntoView({behavior:'smooth',block:'start'})}
+    // id 形如 b:batchId / g:__assets__；DOM id 不含前缀，所以 navActive 保留全名（用于高亮），DOM 查 lib- 时去前缀
+    const scrollToGroup=id=>{
+      navActive.value=id
+      const domId=id.replace(/^b:|^g:/,'')
+      document.getElementById('lib-'+domId)?.scrollIntoView({behavior:'smooth',block:'start'})
+    }
     const hideVideo=async path=>{
       try{await ElementPlus.ElMessageBox.confirm('隐藏后该素材不再显示（文件保留，可随时恢复）','确认隐藏',{type:'warning'})}catch{return}
       try{const{data}=await axios.post('/api/videos/hide',{path});ElementPlus.ElMessage.success(data.message);loadVideos()}catch(e){ElementPlus.ElMessage.error(e.response?.data?.detail||'隐藏失败')}
