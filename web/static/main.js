@@ -296,12 +296,30 @@ const app=createApp({
     const parseYaml=text=>{const r={};text.split('\n').forEach(l=>{l=l.trim();if(!l||l.startsWith('#'))return;const i=l.indexOf(':');if(i>0)r[l.slice(0,i).trim()]=l.slice(i+1).trim()});return r}
     const loadCfg=async()=>{cfgLoading.value=true;try{const{data}=await axios.get('/api/config');cfg.value=data;
       cfg.value.llm=cfg.value.llm||{};cfg.value.ffmpeg=cfg.value.ffmpeg||{};cfg.value.merge=cfg.value.merge||{};
-      if(cfg.value.ffmpeg.subtitle===undefined)cfg.value.ffmpeg.subtitle={}
-      if(cfg.value.merge.tts_mode===undefined)cfg.value.merge.tts_mode='whole'
-      if(cfg.value.llm.enabled===undefined)cfg.value.llm.enabled=true
+      cfg.value.ffmpeg.subtitle=cfg.value.ffmpeg.subtitle||{};
+      cfg.value.merge.tts_mode=cfg.value.merge.tts_mode||'whole';
+      cfg.value.llm.enabled=cfg.value.llm.enabled!==false;
+      cfg.value.llm.timeout=cfg.value.llm.timeout??60;
+      cfg.value.seedance=cfg.value.seedance||{};
+      cfg.value.seedance.default_duration=cfg.value.seedance.default_duration??5;
       kwMapText.value=yamlize(data.agent?.keyword_map)}catch(e){toastError(e,'加载配置失败')};cfgLoading.value=false}
     const loadTpls=async()=>{try{const{data}=await axios.get('/api/templates');templates.value=data}catch(e){toastError(e,'加载模板失败')}}
-    const saveCfg=async()=>{cfgSaving.value=true;try{cfg.value.agent.keyword_map=parseYaml(kwMapText.value);const{data}=await axios.put('/api/config',cfg.value);saveResult.value=data;saveResultDlg.value=true}catch{saveResult.value={ok:false,message:'保存失败'};saveResultDlg.value=true};cfgSaving.value=false}
+
+    // 保存前过滤：只保留后端真实使用的字段，避免 yaml 里残留 0 引用的脏数据
+    // null = 整块保留（comfyui 由环境变量管理，前端不展示也不该被裁剪）
+    const CFG_KEEP={
+      llm:new Set(['enabled','api_url','api_key','model','max_tokens','temperature','timeout']),
+      seedance:new Set(['model_version','resolution','aspect_ratio','generate_audio','enable_random_seed','default_duration']),
+      ffmpeg:new Set(['crf','pix_fmt','font_family','font_size','audio_codec','audio_bitrate','subtitle']),
+      tts:new Set(['voice','rate']),
+      merge:new Set(['transition','transition_duration','tts_mode','break_between_shots_ms','silent_sample_rate','concat_filename']),
+      output:new Set(['shots_dir','audio_dir','subs_dir','merged_dir','final_dir']),
+      input:new Set(['default_duration']),
+      agent:new Set(['default_seed','default_duration','max_retries','duration_range','prompt_min_length','prompt_short_duration','prompt_long_duration','keyword_map']),
+      comfyui:null,
+    };
+    const pruneCfg=c=>{const r={};for(const k in c){if(k in CFG_KEEP){const keep=CFG_KEEP[k];if(keep===null)r[k]=c[k];else{r[k]={};for(const f of keep)if(c[k]&&c[k][f]!==undefined)r[k][f]=c[k][f]}}}return r};
+    const saveCfg=async()=>{cfgSaving.value=true;try{cfg.value.agent.keyword_map=parseYaml(kwMapText.value);const body=pruneCfg(cfg.value);const{data}=await axios.put('/api/config',body);saveResult.value=data;saveResultDlg.value=true}catch{saveResult.value={ok:false,message:'保存失败'};saveResultDlg.value=true};cfgSaving.value=false}
     const resetCfg=async()=>{try{await ElementPlus.ElMessageBox.confirm('确定从备份恢复？','确认',{type:'warning'})}catch{return};cfgResetting.value=true;try{const{data}=await axios.post('/api/config/reset');cfg.value=data.config;kwMapText.value=yamlize(data.config.agent?.keyword_map);ElementPlus.ElMessage.success(data.message)}catch{ElementPlus.ElMessage.error('恢复失败')};cfgResetting.value=false}
     const viewTpl=async id=>{try{const{data}=await axios.get(`/api/templates/${id}`);tplDlgContent.value=JSON.stringify(data,null,2);tplDlg.value=true}catch(e){toastError(e,'加载模板失败')}}
     const onTplImported=res=>{ElementPlus.ElMessage.success(res.message||'导入成功');loadTpls()}

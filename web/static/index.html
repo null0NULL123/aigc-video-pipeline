@@ -564,10 +564,7 @@
         <el-collapse-item name="models">
           <template #title><el-icon><Connection></Connection></el-icon>&nbsp; 模型与 API</template>
           <el-form :label-width="isNarrow?'96px':'140px'" class="config-form">
-            <div class="group-title">即梦 API</div>
-            <el-form-item label="API Key"><el-input v-model="cfg.api.jimeng.api_key" show-password></el-input></el-form-item>
-            <el-form-item label="Key 名称"><el-input v-model="cfg.api.jimeng.key_name"></el-input></el-form-item>
-            <div class="group-title">LLM</div>
+<div class="group-title">LLM</div>
             <el-form-item label="启用 LLM"><el-switch v-model="cfg.llm.enabled"></el-switch></el-form-item>
             <el-form-item label="API URL"><el-input v-model="cfg.llm.api_url"></el-input></el-form-item>
             <el-form-item label="API Key"><el-input v-model="cfg.llm.api_key" show-password></el-input></el-form-item>
@@ -580,7 +577,6 @@
             <el-form-item label="分辨率"><el-select v-model="cfg.seedance.resolution"><el-option label="720p" value="720p"></el-option><el-option label="1080p" value="1080p"></el-option></el-select></el-form-item>
             <el-form-item label="宽高比"><el-select v-model="cfg.seedance.aspect_ratio"><el-option label="adaptive" value="adaptive"></el-option><el-option label="16:9" value="16:9"></el-option><el-option label="9:16" value="9:16"></el-option><el-option label="1:1" value="1:1"></el-option></el-select></el-form-item>
             <el-form-item label="默认时长"><el-input-number v-model="cfg.seedance.default_duration" :min="2" :max="20"></el-input-number></el-form-item>
-            <el-form-item label="默认种子"><el-input-number v-model="cfg.seedance.default_seed" :min="0"></el-input-number></el-form-item>
             <el-form-item label="生成音频"><el-switch v-model="cfg.seedance.generate_audio"></el-switch></el-form-item>
             <el-form-item label="随机种子"><el-switch v-model="cfg.seedance.enable_random_seed"></el-switch></el-form-item>
           </el-form>
@@ -589,18 +585,8 @@
         <el-collapse-item name="media">
           <template #title><el-icon><video-camera></video-camera></el-icon>&nbsp; 视频与音频</template>
           <el-form :label-width="isNarrow?'96px':'140px'" class="config-form">
-            <div class="group-title">视频</div>
-            <el-form-item label="帧率"><el-input-number v-model="cfg.video.fps" :min="1" :max="60"></el-input-number></el-form-item>
-            <el-form-item label="宽"><el-input-number v-model="cfg.video.width" :min="128" :max="3840" :step="16"></el-input-number></el-form-item>
-            <el-form-item label="高"><el-input-number v-model="cfg.video.height" :min="128" :max="3840" :step="16"></el-input-number></el-form-item>
-            <el-form-item label="编码器"><el-select v-model="cfg.video.codec"><el-option label="libx264" value="libx264"></el-option><el-option label="libx265" value="libx265"></el-option></el-select></el-form-item>
-            <el-form-item label="CRF"><el-input-number v-model="cfg.video.crf" :min="0" :max="51"></el-input-number></el-form-item>
-            <el-form-item label="像素格式"><el-select v-model="cfg.video.pix_fmt"><el-option label="yuv420p" value="yuv420p"></el-option></el-select></el-form-item>
-            <div class="group-title">FFmpeg</div>
+<div class="group-title">FFmpeg</div>
             <el-form-item label="CRF"><el-input-number v-model="cfg.ffmpeg.crf" :min="0" :max="51"></el-input-number></el-form-item>
-            <el-form-item label="编码器"><el-select v-model="cfg.ffmpeg.codec"><el-option label="libx264" value="libx264"></el-option><el-option label="libx265" value="libx265"></el-option></el-select></el-form-item>
-            <el-form-item label="Profile"><el-select v-model="cfg.ffmpeg.profile"><el-option label="main" value="main"></el-option><el-option label="high" value="high"></el-option></el-select></el-form-item>
-            <el-form-item label="字体"><el-input v-model="cfg.ffmpeg.font"></el-input></el-form-item>
             <el-form-item label="字号"><el-input-number v-model="cfg.ffmpeg.font_size" :min="12" :max="120"></el-input-number></el-form-item>
             <div class="group-title">字幕样式</div>
             <el-form-item label="字体颜色"><el-input v-model="cfg.ffmpeg.subtitle.font_color" placeholder="FFFFFF"></el-input></el-form-item>
@@ -629,12 +615,7 @@
                 <el-option label="不配音" value="none"></el-option>
               </el-select>
             </el-form-item>
-            <el-form-item label="文件名前缀"><el-input v-model="cfg.merge.filename_prefix"></el-input></el-form-item>
             <el-form-item label="采样率"><el-input-number v-model="cfg.merge.silent_sample_rate" :min="8000" :max="96000" :step="1000"></el-input-number></el-form-item>
-            <el-form-item label="音频阈值"><el-input-number v-model="cfg.merge.audio_threshold"></el-input-number></el-form-item>
-            <el-form-item label="字幕阈值"><el-input-number v-model="cfg.merge.srt_threshold"></el-input-number></el-form-item>
-            <el-form-item label="字幕默认时长"><el-input-number v-model="cfg.merge.srt_default_duration" :min="1" :max="30"></el-input-number></el-form-item>
-            <el-form-item label="输出文件名"><el-input v-model="cfg.merge.output_filename"></el-input></el-form-item>
           </el-form>
         </el-collapse-item>
 
@@ -642,35 +623,23 @@
           <template #title><el-icon><folder-opened></folder-opened></el-icon>&nbsp; 目录与任务</template>
           <el-form :label-width="isNarrow?'96px':'140px'" class="config-form">
             <div class="group-title">输出目录</div>
-            <el-form-item label="基础目录"><el-input v-model="cfg.output.base_dir"></el-input></el-form-item>
             <el-form-item label="镜头"><el-input v-model="cfg.output.shots_dir"></el-input></el-form-item>
             <el-form-item label="音频"><el-input v-model="cfg.output.audio_dir"></el-input></el-form-item>
             <el-form-item label="字幕"><el-input v-model="cfg.output.subs_dir"></el-input></el-form-item>
             <el-form-item label="合并"><el-input v-model="cfg.output.merged_dir"></el-input></el-form-item>
             <el-form-item label="最终"><el-input v-model="cfg.output.final_dir"></el-input></el-form-item>
-            <div class="group-title">任务</div>
-            <el-form-item label="批次前缀"><el-input v-model="cfg.task.batch_prefix"></el-input></el-form-item>
-            <el-form-item label="镜头前缀"><el-input v-model="cfg.task.shot_prefix"></el-input></el-form-item>
-            <el-form-item label="ID 格式"><el-input v-model="cfg.task.id_format"></el-input></el-form-item>
             <div class="group-title">输入默认值</div>
             <el-form-item label="默认时长"><el-input-number v-model="cfg.input.default_duration" :min="1" :max="20"></el-input-number></el-form-item>
-            <el-form-item label="素材类型"><el-select v-model="cfg.input.default_asset_type"><el-option label="ai_generated" value="ai_generated"></el-option><el-option label="stock" value="stock"></el-option></el-select></el-form-item>
-            <div class="group-title">日志</div>
-            <el-form-item label="级别"><el-select v-model="cfg.logging.level"><el-option label="DEBUG" value="DEBUG"></el-option><el-option label="INFO" value="INFO"></el-option><el-option label="WARNING" value="WARNING"></el-option><el-option label="ERROR" value="ERROR"></el-option></el-select></el-form-item>
-            <el-form-item label="目录"><el-input v-model="cfg.logging.dir"></el-input></el-form-item>
           </el-form>
         </el-collapse-item>
 
         <el-collapse-item name="agent">
           <template #title><el-icon><magic-stick></magic-stick></el-icon>&nbsp; Agent 行为</template>
           <el-form :label-width="isNarrow?'96px':'140px'" class="config-form">
-            <el-form-item label="摄像机"><el-input v-model="cfg.agent.camera"></el-input></el-form-item>
-            <el-form-item label="风格"><el-input v-model="cfg.agent.style" type="textarea" :rows="2"></el-input></el-form-item>
             <el-form-item label="关键词映射">
               <textarea class="yaml-editor" v-model="kwMapText" rows="6" placeholder="每行一个「关键词: 提示词」&#10;例如：&#10;夜晚: 夜色朦胧的城市街景&#10;海边: 阳光下的海浪拍岸"></textarea>
             </el-form-item>
             <el-form-item label="默认种子"><el-input-number v-model="cfg.agent.default_seed" :min="0"></el-input-number></el-form-item>
-            <el-form-item label="文件名前缀"><el-input v-model="cfg.agent.filename_prefix"></el-input></el-form-item>
             <el-form-item label="默认时长"><el-input-number v-model="cfg.agent.default_duration" :min="1" :max="20"></el-input-number></el-form-item>
             <el-form-item label="最大重试"><el-input-number v-model="cfg.agent.max_retries" :min="0" :max="10"></el-input-number></el-form-item>
             <el-form-item label="时长范围">

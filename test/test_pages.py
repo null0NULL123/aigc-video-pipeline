@@ -83,3 +83,58 @@ def test_static_missing_file(client):
 
 def test_unknown_page(client):
     assert client.get("/no-such-page").status_code == 404
+
+
+# 0 引用字段白名单：UI 只允许绑定被后端读取的字段。
+# 任何这里列出的字段如果不再被后端使用，应从 UI 中移除，并从下方白名单删去。
+FRONTEND_CFG_WHITELIST = frozenset({
+    # LLM
+    "cfg.llm.enabled", "cfg.llm.api_url", "cfg.llm.api_key", "cfg.llm.model",
+    "cfg.llm.max_tokens", "cfg.llm.temperature", "cfg.llm.timeout",
+    # Seedance（volcano.py 真实使用 model_version/resolution/aspect_ratio/default_duration/generate_audio/enable_random_seed）
+    "cfg.seedance.model_version", "cfg.seedance.resolution",
+    "cfg.seedance.aspect_ratio", "cfg.seedance.default_duration",
+    "cfg.seedance.generate_audio", "cfg.seedance.enable_random_seed",
+    # FFmpeg（merge.py + media.py）
+    "cfg.ffmpeg.crf", "cfg.ffmpeg.pix_fmt", "cfg.ffmpeg.font_family",
+    "cfg.ffmpeg.font_size", "cfg.ffmpeg.audio_codec", "cfg.ffmpeg.audio_bitrate",
+    "cfg.ffmpeg.subtitle.font_color", "cfg.ffmpeg.subtitle.outline_color",
+    "cfg.ffmpeg.subtitle.outline_width", "cfg.ffmpeg.subtitle.alignment",
+    "cfg.ffmpeg.subtitle.margin_v", "cfg.ffmpeg.subtitle.shadow",
+    # TTS
+    "cfg.tts.voice", "cfg.tts.rate",
+    # Merge（merge.py 真实使用 transition/transition_duration/tts_mode/break_between_shots_ms/silent_sample_rate/concat_filename）
+    "cfg.merge.transition", "cfg.merge.transition_duration",
+    "cfg.merge.tts_mode", "cfg.merge.break_between_shots_ms",
+    "cfg.merge.silent_sample_rate", "cfg.merge.concat_filename",
+    # Output
+    "cfg.output.shots_dir", "cfg.output.audio_dir", "cfg.output.subs_dir",
+    "cfg.output.merged_dir", "cfg.output.final_dir",
+    # Input
+    "cfg.input.default_duration",
+    # Agent（generator.py 真实使用 default_seed/default_duration/max_retries/duration_range/prompt_*）
+    "cfg.agent.default_seed", "cfg.agent.default_duration",
+    "cfg.agent.max_retries", "cfg.agent.duration_range",
+    "cfg.agent.prompt_min_length", "cfg.agent.prompt_short_duration",
+    "cfg.agent.prompt_long_duration",
+})
+
+
+def test_settings_no_zero_reference_fields(client):
+    """设置页不能出现后端 0 引用的 cfg 字段（除 keywordMapText 文本编辑器外）。"""
+    import re
+    html = client.get("/").text
+    # 提取所有 v-model="cfg.xxx.yyy..." 绑定（不包括带 .length / .map 之类方法调用）
+    matches = re.findall(r'v-model="(cfg\.[\w.\[\]0-9]+?)"', html)
+    # 去重 + 过滤：cfg.agent.duration_range[0]/[1] 这类
+    clean = sorted(set(matches))
+    # 数组下标视为白名单前缀（duration_range[0] / duration_range[1] 都归到 duration_range）
+    def whitelisted(m):
+        if m in FRONTEND_CFG_WHITELIST:
+            return True
+        return any(m.startswith(base + "[") for base in FRONTEND_CFG_WHITELIST)
+    offenders = [m for m in clean if not whitelisted(m)]
+    assert not offenders, (
+        "设置页出现后端 0 引用的字段，请先确认后端是否真的不用，"
+        "再从 index.html 删除或加到 FRONTEND_CFG_WHITELIST：\n  " + "\n  ".join(offenders)
+    )
