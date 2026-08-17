@@ -578,7 +578,6 @@
             <el-form-item label="宽高比"><el-select v-model="cfg.seedance.aspect_ratio"><el-option label="adaptive" value="adaptive"></el-option><el-option label="16:9" value="16:9"></el-option><el-option label="9:16" value="9:16"></el-option><el-option label="1:1" value="1:1"></el-option></el-select></el-form-item>
             <el-form-item label="默认时长"><el-input-number v-model="cfg.seedance.default_duration" :min="2" :max="20"></el-input-number></el-form-item>
             <el-form-item label="生成音频"><el-switch v-model="cfg.seedance.generate_audio"></el-switch></el-form-item>
-            <el-form-item label="随机种子"><el-switch v-model="cfg.seedance.enable_random_seed"></el-switch></el-form-item>
           </el-form>
         </el-collapse-item>
 
@@ -637,9 +636,6 @@
         <el-collapse-item name="agent">
           <template #title><el-icon><magic-stick></magic-stick></el-icon>&nbsp; Agent 行为</template>
           <el-form :label-width="isNarrow?'96px':'140px'" class="config-form">
-            <el-form-item label="关键词映射">
-              <textarea class="yaml-editor" v-model="kwMapText" rows="6" placeholder="每行一个「关键词: 提示词」&#10;例如：&#10;夜晚: 夜色朦胧的城市街景&#10;海边: 阳光下的海浪拍岸"></textarea>
-            </el-form-item>
             <el-form-item label="默认种子"><el-input-number v-model="cfg.agent.default_seed" :min="0"></el-input-number></el-form-item>
             <el-form-item label="默认时长"><el-input-number v-model="cfg.agent.default_duration" :min="1" :max="20"></el-input-number></el-form-item>
             <el-form-item label="最大重试"><el-input-number v-model="cfg.agent.max_retries" :min="0" :max="10"></el-input-number></el-form-item>

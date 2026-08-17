@@ -23,7 +23,6 @@ seedance:
   resolution: 720p
   aspect_ratio: adaptive
   generate_audio: true
-  enable_random_seed: true
   default_seed: 0
   default_duration: 5
 ffmpeg:

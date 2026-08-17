@@ -42,7 +42,6 @@
         ],
         "model_version": "{{seedance.model_version}}",
         "prompt": "prompt placeholder",
-        "enable_random_seed": "{{seedance.enable_random_seed}}",
         "seed": "{{seedance.default_seed}}",
         "resolution": "{{seedance.resolution}}",
         "aspect_ratio": "{{seedance.aspect_ratio}}",
