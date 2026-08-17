@@ -20,7 +20,9 @@ AIGC 视频批生产管道。读取分镜表 → ComfyUI / Seedream / Seedance �
 ├── pipeline/
 │   ├── input_reader.py  # 读取 CSV / Excel 分镜表
 │   ├── generator.py     # 异步批量调度
-│   ├── comfyui.py       # ComfyUI HTTP 客户端
+│   ├── providers/         # 生成后端客户端
+│   │   ├── comfyui.py     # ComfyUI HTTP 客户端（兜底）
+│   │   └── volcano.py     # 火山方舟 Ark API 直连（Seedream / Seedance，无需 ComfyUI）
 │   ├── llm.py           # LLM 调用（生成 prompt）
 │   ├── merge.py         # FFmpeg 合并 / 字幕
 │   ├── registry.py      # 模板注册
