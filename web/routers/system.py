@@ -4,12 +4,11 @@
 """
 import shutil
 import time
+from pathlib import Path
 import yaml
 from datetime import datetime
 from fastapi import APIRouter
-
 import aiohttp
-
 from web import settings
 
 router = APIRouter(tags=["system"])
@@ -49,24 +48,77 @@ def _disk_usage() -> dict:
         return {"output_size_mb": round(output_size / 1024 / 1024, 1)}
 
 
+CATEGORY_DIRS = ("shots", "merged", "final", "audio", "subs", "logs")
+
+
+def _discover_batches() -> list[Path]:
+    """发现所有 batch（兼容新旧结构）
+
+    新结构: output/{category}/{batch_id}/...
+    旧结构: output/{batch_id}/{category}/...
+    """
+    if not settings.OUTPUT_DIR.exists():
+        return []
+    found: dict[str, Path] = {}
+    # 新结构：扫描 6 个分类目录
+    for cat in CATEGORY_DIRS:
+        cat_dir = settings.OUTPUT_DIR / cat
+        if not cat_dir.exists():
+            continue
+        for d in cat_dir.iterdir():
+            if d.is_dir():
+                found.setdefault(d.name, d)
+    # 旧结构：直接子目录里有分类子目录的（demo_xxx/batch_xxx）
+    for d in settings.OUTPUT_DIR.iterdir():
+        if not d.is_dir():
+            continue
+        if d.name in CATEGORY_DIRS or d.name.startswith("."):
+            continue  # 跳过分类根
+        # 判定：含 shots/final/audio/subs/merged 任一子目录
+        if any((d / c).is_dir() for c in CATEGORY_DIRS):
+            found.setdefault(d.name, d)
+    # 按 mtime 倒序
+    return sorted(found.values(), key=lambda p: p.stat().st_mtime, reverse=True)
+
+
+def _resolve_batch_paths(batch_dir: Path) -> tuple[Path | None, Path | None]:
+    """解析 batch 的 shots_dir 和 final video 路径，兼容新旧结构"""
+    shots_dir = final_path = None
+    # 新结构
+    for cat, role in (("shots", "shots_dir"), ("final", "final")):
+        d = settings.OUTPUT_DIR / cat / batch_dir.name
+        if d.is_dir():
+            if role == "shots_dir":
+                shots_dir = d
+            elif role == "final":
+                # 新结构 final dir 下找 final_video.mp4
+                p = d / "final_video.mp4"
+                if p.exists():
+                    final_path = p
+    # 旧结构（output/{batch_id}/{cat}/）
+    for cat in ("shots",):
+        d = batch_dir / cat
+        if d.is_dir() and shots_dir is None:
+            shots_dir = d
+    final_legacy = batch_dir / "final" / "final_video.mp4"
+    if final_legacy.exists() and final_path is None:
+        final_path = final_legacy
+    return shots_dir, final_path
+
+
 def _latest_batch() -> dict | None:
     """最近一次运行摘要"""
-    if not settings.OUTPUT_DIR.exists():
-        return None
-
-    batches = sorted([d for d in settings.OUTPUT_DIR.iterdir() if d.is_dir() and d.name.startswith("batch_")])
+    batches = _discover_batches()
     if not batches:
         return None
-
-    latest = batches[-1]
-    shots_dir = latest / "shots"
-    shots_count = len(list(shots_dir.glob("*.mp4"))) if shots_dir.exists() else 0
-    final = latest / "final" / "final_video.mp4"
+    latest = batches[0]
+    shots_dir, final = _resolve_batch_paths(latest)
+    shots_count = len(list(shots_dir.glob("*.mp4"))) if shots_dir and shots_dir.exists() else 0
 
     return {
         "batch_id": latest.name,
         "shots_count": shots_count,
-        "has_final": final.exists(),
+        "has_final": final.exists() if final else False,
         "created_at": datetime.fromtimestamp(latest.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
     }
 

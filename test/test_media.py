@@ -28,7 +28,10 @@ def test_merge_concat(client, workdir, monkeypatch):
     })
     assert r.status_code == 200
     assert r.json()["ok"] is True
-    assert r.json()["path"] == "merged/demo.mp4"
+    # 新行为：手动合并加 manual_ 前缀 + 时间戳避免冲突
+    import re as _re
+    assert _re.match(r"^merged/manual_\d{8}_\d{6}_demo\.mp4$", r.json()["path"]), \
+        f"unexpected path: {r.json()['path']}"
     assert len(calls["merge_only"][0]) == 2
 
 

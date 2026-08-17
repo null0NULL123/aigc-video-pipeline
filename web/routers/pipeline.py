@@ -198,8 +198,16 @@ def _export_selection_csv(selections: list[dict]) -> tuple[str, list[dict]]:
 
 
 def _write_manifest(batch_id: str, meta: list[dict]):
-    """把 temp_id → 镜头信息映射写入批次目录，供前端自动带出台词"""
-    out_dir = Path(settings.OUTPUT_DIR) / batch_id
+    """把 temp_id → 镜头信息映射写入批次目录，供前端自动带出台词
+
+    新结构: output/shots/{batch_id}/generate_manifest.json（manifest 与 shots 关联）
+    兼容: 旧结构 output/{batch_id}/generate_manifest.json
+    """
+    candidates = [
+        Path(settings.OUTPUT_DIR) / "shots" / batch_id,        # 新结构
+        Path(settings.OUTPUT_DIR) / batch_id,                  # 旧结构
+    ]
+    out_dir = next((d for d in candidates if d.exists()), candidates[0])
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest = {str(m["temp_id"]): m for m in meta}
     (out_dir / "generate_manifest.json").write_text(
@@ -207,9 +215,17 @@ def _write_manifest(batch_id: str, meta: list[dict]):
 
 
 def _mark_done_from_batch(batch_id: str, meta: list[dict]):
-    """扫描 output/{batch_id}/shots/*_shot_{temp_id}.mp4，回写表格状态"""
-    shots_dir = Path(settings.OUTPUT_DIR) / batch_id / "shots"
-    if not shots_dir.exists():
+    """扫描 batch 的 shots 目录（兼容新旧结构），回写表格状态
+
+    新结构: output/shots/{batch_id}/*.mp4
+    旧结构: output/{batch_id}/shots/*.mp4
+    """
+    candidates = [
+        Path(settings.OUTPUT_DIR) / "shots" / batch_id,        # 新结构
+        Path(settings.OUTPUT_DIR) / batch_id / "shots",        # 旧结构
+    ]
+    shots_dir = next((d for d in candidates if d.exists()), None)
+    if not shots_dir:
         return
     done_pairs = []
     for mp4 in shots_dir.glob("*.mp4"):

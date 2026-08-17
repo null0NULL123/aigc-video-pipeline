@@ -517,10 +517,10 @@ def run(shot_results: list[dict], config: dict) -> str:
     ffmpeg_cfg = config.get("ffmpeg", {})
     merge_cfg = config.get("merge", {})
 
-    audio_dir = Path(output_cfg.get("audio_dir", "output/audio"))
-    subs_dir = Path(output_cfg.get("subs_dir", "output/subs"))
-    merged_dir = Path(output_cfg.get("merged_dir", "output/merged"))
-    final_dir = Path(output_cfg.get("final_dir", "output/final"))
+    audio_dir = Path(output_cfg.get("audio_dir", "output/audio/{project}"))
+    subs_dir = Path(output_cfg.get("subs_dir", "output/subs/{project}"))
+    merged_dir = Path(output_cfg.get("merged_dir", "output/merged/{project}"))
+    final_dir = Path(output_cfg.get("final_dir", "output/final/{project}"))
     for d in (audio_dir, subs_dir, merged_dir, final_dir):
         d.mkdir(parents=True, exist_ok=True)
 

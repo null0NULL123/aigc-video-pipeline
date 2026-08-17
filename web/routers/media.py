@@ -58,7 +58,9 @@ async def merge_videos(body: dict):
 
     out_dir = settings.OUTPUT_DIR / "merged"
     out_dir.mkdir(parents=True, exist_ok=True)
-    output_path = str(out_dir / f"{name}.mp4")
+    # 手动合并（无 batch_id 归属）：文件名加时间戳避免冲突
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_path = str(out_dir / f"manual_{timestamp}_{name}.mp4")
 
     if mode == "transition":
         dur = float((body or {}).get("transition_duration", merge_cfg.get("transition_duration", 0.5)))

@@ -1,4 +1,5 @@
 """页面与静态资源测试"""
+import pytest
 
 
 def test_index(client):
@@ -104,10 +105,10 @@ FRONTEND_CFG_WHITELIST = frozenset({
     # LLM
     "cfg.llm.enabled", "cfg.llm.api_url", "cfg.llm.api_key", "cfg.llm.model",
     "cfg.llm.max_tokens", "cfg.llm.temperature", "cfg.llm.timeout",
-    # Seedance（volcano.py 真实使用 model_version/resolution/aspect_ratio/default_duration/generate_audio/enable_random_seed）
+    # Seedance（volcano.py 真实使用 model_version/resolution/aspect_ratio/default_duration/generate_audio）
     "cfg.seedance.model_version", "cfg.seedance.resolution",
     "cfg.seedance.aspect_ratio", "cfg.seedance.default_duration",
-    "cfg.seedance.generate_audio", "cfg.seedance.enable_random_seed",
+    "cfg.seedance.generate_audio",
     # FFmpeg（merge.py + media.py）
     "cfg.ffmpeg.crf", "cfg.ffmpeg.pix_fmt", "cfg.ffmpeg.font_family",
     "cfg.ffmpeg.font_size", "cfg.ffmpeg.audio_codec", "cfg.ffmpeg.audio_bitrate",
@@ -134,7 +135,7 @@ FRONTEND_CFG_WHITELIST = frozenset({
 
 
 def test_settings_no_zero_reference_fields(client):
-    """设置页不能出现后端 0 引用的 cfg 字段（除 keywordMapText 文本编辑器外）。"""
+    """设置页不能出现后端 0 引用的 cfg 字段。"""
     import re
     html = client.get("/").text
     # 提取所有 v-model="cfg.xxx.yyy..." 绑定（不包括带 .length / .map 之类方法调用）
@@ -151,3 +152,19 @@ def test_settings_no_zero_reference_fields(client):
         "设置页出现后端 0 引用的字段，请先确认后端是否真的不用，"
         "再从 index.html 删除或加到 FRONTEND_CFG_WHITELIST：\n  " + "\n  ".join(offenders)
     )
+
+
+def test_main_js_cfg_keep_includes_task_block():
+    """main.js CFG_KEEP 必须含 task:null，否则前端保存会裁掉 task.output_structure 模板
+
+    守护：output_structure 由 task.output_structure 派生，前端不展示但必须保留。
+    """
+    import re
+    js = open("web/static/main.js", encoding="utf-8").read()
+    # 找到 CFG_KEEP 块
+    m = re.search(r"const CFG_KEEP=\{(.+?)\};", js, re.S)
+    assert m, "main.js 找不到 CFG_KEEP 块"
+    body = m.group(1)
+    # 允许 task:null 或 task:new Set([...]) 两种写法
+    assert re.search(r"\btask\s*:\s*null\b", body), \
+        "main.js CFG_KEEP 缺 task:null，前端保存配置会裁掉 task.output_structure"

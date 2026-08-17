@@ -315,6 +315,7 @@ const app=createApp({
       output:new Set(['shots_dir','audio_dir','subs_dir','merged_dir','final_dir']),
       input:new Set(['default_duration']),
       agent:new Set(['default_seed','default_duration','max_retries','duration_range','prompt_min_length','prompt_short_duration','prompt_long_duration']),
+      task:null,           // task.output_structure + batch_prefix 由 ensure_dirs 使用，前端不展示但需保留
       comfyui:null,
     };
     const pruneCfg=c=>{const r={};for(const k in c){if(k in CFG_KEEP){const keep=CFG_KEEP[k];if(keep===null)r[k]=c[k];else{r[k]={};for(const f of keep)if(c[k]&&c[k][f]!==undefined)r[k][f]=c[k][f]}}}return r};

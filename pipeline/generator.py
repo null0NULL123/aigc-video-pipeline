@@ -417,7 +417,7 @@ async def _wait(state: dict) -> dict:
     try:
         history = await client.wait_for_completion(pid)
         config = state.get("config", {})
-        output_dir = config.get("output", {}).get("shots_dir", "output/shots")
+        output_dir = config.get("output", {}).get("shots_dir", "output/shots/{project}")
         video_path = await client.download_output(history, output_dir, sid)
         log.info(Msg.LG_WAIT_OK.format(path=video_path))
         return {**state, "video_path": video_path, "status": "done"}
@@ -514,7 +514,7 @@ async def _submit_volcano(state: dict) -> dict:
     duration = int(state.get("duration", sd_cfg.get("default_duration", 5)))
     batch_id = config.get("_batch_id", "")
     prefix = f"{batch_id}_shot_{sid}" if batch_id else f"shot_{sid}"
-    output_dir = Path(config.get("output", {}).get("shots_dir", "output/shots"))
+    output_dir = Path(config.get("output", {}).get("shots_dir", "output/shots/{project}"))
 
     # 素材收集
     assets = state.get("assets") or []
@@ -590,7 +590,7 @@ async def _wait_volcano(state: dict) -> dict:
 
     batch_id = config.get("_batch_id", "")
     prefix = f"{batch_id}_shot_{sid}" if batch_id else f"shot_{sid}"
-    output_dir = Path(config.get("output", {}).get("shots_dir", "output/shots"))
+    output_dir = Path(config.get("output", {}).get("shots_dir", "output/shots/{project}"))
 
     try:
         seedance_api = VolcanoSeedance(vc)
