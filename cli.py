@@ -1,6 +1,10 @@
 """
 视频批量生产流水线 — 主入口（异步版）
 输入→LangGraph Agent→合并
+
+⚠️  此入口已废弃（DEPRECATED），仅作历史备查。
+   请改用 Web 管理面板：uvicorn app:app --reload  →  http://127.0.0.1:8000
+   本文件保留不动，逻辑随时可恢复；新功能请加在 web/ 下，不要再扩展 CLI。
 """
 import argparse, asyncio, os, sys
 import yaml
@@ -11,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from pipeline.input_reader import read_shots
 from pipeline.generator import run_batch, set_current_batch_id
-from pipeline.comfyui import ComfyUIClient
+from pipeline.providers.comfyui import ComfyUIClient
 from pipeline.registry import TemplateRegistry
 from pipeline import merge as merge_pipeline
 

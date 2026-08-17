@@ -9,7 +9,7 @@ import sys
 import time
 
 from .registry import TemplateRegistry
-from .comfyui import ComfyUIClient
+from .providers.comfyui import ComfyUIClient
 from .log import get_logger
 from .messages import Msg
 from . import llm as llm_client
