@@ -10,6 +10,7 @@ import time
 
 from .registry import TemplateRegistry
 from .providers.comfyui import ComfyUIClient
+from .providers.volcano import VolcanoClient, VolcanoSeedream, VolcanoSeedance
 from .log import get_logger
 from .messages import Msg
 from . import llm as llm_client
@@ -138,6 +139,33 @@ def _is_chain_workflow(wdata: dict) -> bool:
             any("JimengSeedance" in c for c in cts))
 
 
+# 火山方舟直连可处理的节点：Jimeng 系列 + 文件 I/O glue 节点
+_VOLCANO_NODE_PREFIXES = ("JimengSeedream", "JimengSeedance", "JimengAPIClient")
+_VOLCANO_GLUE_NODES = ("LoadImage", "LoadVideo", "SaveImage", "SaveVideo")
+
+
+def _is_volcano_eligible(wf: dict) -> bool:
+    """工作流是否可走火山方舟直连（只含 Jimeng + 文件 I/O glue 节点）"""
+    if not wf or not isinstance(wf, dict):
+        return False
+    for info in wf.values():
+        if not isinstance(info, dict):
+            continue
+        ct = info.get("class_type", "")
+        if any(ct.startswith(p) for p in _VOLCANO_NODE_PREFIXES):
+            continue
+        if ct in _VOLCANO_GLUE_NODES:
+            continue
+        return False  # 未知节点 → 只能走 ComfyUI
+    return True
+
+
+def _has_volcano_key(config: dict) -> bool:
+    """config.api.jimeng.api_key 已配置且不是占位符"""
+    key = (config.get("api", {}).get("jimeng", {}).get("api_key", "") or "").strip()
+    return bool(key) and not key.startswith("your-")
+
+
 async def _optimize_prompt(state: dict) -> dict:
     """LLM 把画面内容翻译成英文 prompt；失败/未配置时回退静态拼接"""
     config = state.get("config", {})
@@ -230,6 +258,16 @@ def _validate(state: dict) -> dict:
 async def _submit(state: dict) -> dict:
     sid = state.get("id", "?")
     ctx = state.get("_ctx") or {}
+    config = state.get("config", {})
+
+    # ── 火山方舟直连分发：Jimeng 工作流 + api_key 已配 + client 已建 ──
+    wf_data = state.get("workflow_data") or {}
+    wf = wf_data.get("workflow") if isinstance(wf_data, dict) else None
+    if (_is_volcano_eligible(wf) and _has_volcano_key(config)
+            and ctx.get("volcano_client")):
+        return await _submit_volcano(state)
+
+    # ── 原 ComfyUI 路径（兜底，支持任意节点） ──
     client = ctx.get("client")
     wtype = state.get("workflow_type", "")
     if wtype != "comfyui" or not client:
@@ -366,6 +404,10 @@ async def _submit(state: dict) -> dict:
 
 
 async def _wait(state: dict) -> dict:
+    # 火山方舟路径：状态由 _submit_volcano 设置
+    if state.get("_provider") == "volcano":
+        return await _wait_volcano(state)
+
     sid = state.get("id", "?")
     ctx = state.get("_ctx") or {}
     client = ctx.get("client")
@@ -381,6 +423,187 @@ async def _wait(state: dict) -> dict:
         return {**state, "video_path": video_path, "status": "done"}
     except Exception as e:
         log.error(Msg.LG_WAIT_FAIL.format(err=e))
+        return {**state, "status": "failed", "error_message": str(e)}
+
+
+# ──────────────── 火山方舟直连路径（无需 ComfyUI） ────────────────
+
+def _volcano_seedream_params(wf: dict, config: dict, sid: str) -> tuple[str, str, dict]:
+    """从工作流 + config 提取 Seedream 参数"""
+    sr_cfg = config.get("seedream", {})
+    default_seed = int(config.get("agent", {}).get("default_seed", 0) or 0)
+    node = next((n for n in wf.values()
+                 if isinstance(n, dict) and "JimengSeedream" in n.get("class_type", "")),
+                None)
+    sin = (node or {}).get("inputs", {})
+    return (
+        sin.get("model_version", sr_cfg.get("model_version", "doubao-seedream-4.0")),
+        sin.get("size", sr_cfg.get("size", "2K")),
+        {
+            "seed": int(sin.get("seed", default_seed) or 0),
+            "watermark": bool(sin.get("watermark", sr_cfg.get("watermark", False))),
+        },
+    )
+
+
+def _volcano_seedance_params(wf: dict, config: dict, duration: int) -> tuple[str, str, str, dict]:
+    """从工作流 + config 提取 Seedance 参数"""
+    sd_cfg = config.get("seedance", {})
+    default_seed = int(config.get("agent", {}).get("default_seed", 0) or 0)
+    node = next((n for n in wf.values()
+                 if isinstance(n, dict) and "JimengSeedance" in n.get("class_type", "")),
+                None)
+    sin = (node or {}).get("inputs", {})
+    return (
+        sin.get("model_version", sd_cfg.get("model_version", "doubao-seedance-2-0-fast")),
+        sin.get("resolution", sd_cfg.get("resolution", "720p")),
+        sin.get("aspect_ratio", sd_cfg.get("aspect_ratio", "16:9")),
+        {
+            "duration": int(sin.get("duration", duration) or duration),
+            "generate_audio": bool(sin.get("generate_audio", sd_cfg.get("generate_audio", True))),
+            "seed": int(sin.get("seed", default_seed) or 0),
+        },
+    )
+
+
+async def _download_image_result(client: VolcanoClient, result: dict,
+                                  dest: Path) -> Path:
+    """从 Seedream 响应拿到图片 URL，下载到本地"""
+    data = result.get("data") or []
+    if not data:
+        raise RuntimeError(f"Seedream 返回空 data: {result}")
+    item = data[0]
+    url = item.get("url") or item.get("b64_json")
+    if not url:
+        raise RuntimeError(f"Seedream 返回无 url/b64_json: {item}")
+    if url.startswith("http"):
+        return await client.download(url, dest)
+    # b64_json
+    import base64
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(base64.b64decode(url))
+    log.info(Msg.GEN_DOWNLOAD.format(path=str(dest)))
+    return dest
+
+
+async def _submit_volcano(state: dict) -> dict:
+    """火山方舟直连提交。处理单 Seedream / 单 Seedance / 链式 Seedream→Seedance
+
+    返回 state：
+    - 单 Seedream：status=done, video_path=本地 PNG 路径
+    - 单 Seedance / 链式：status=submitted, task_id=Seedance 任务 ID, _provider="volcano"
+    """
+    sid = state.get("id", "?")
+    config = state.get("config", {})
+    ctx = state.get("_ctx") or {}
+    vc: VolcanoClient = ctx.get("volcano_client")
+    if not vc:
+        return {**state, "status": "failed", "error_message": "无 VolcanoClient"}
+
+    wf_data = state.get("workflow_data") or {}
+    wf = wf_data.get("workflow") or {}
+    seedream_nodes = [n for n in wf.values()
+                      if isinstance(n, dict) and "JimengSeedream" in n.get("class_type", "")]
+    seedance_nodes = [n for n in wf.values()
+                      if isinstance(n, dict) and "JimengSeedance" in n.get("class_type", "")]
+
+    optimized = state.get("optimized_prompt", "")
+    motion = state.get("motion_prompt", "")
+    is_chain = _is_chain_workflow(wf_data)
+    sd_cfg = config.get("seedance", {})
+    duration = int(state.get("duration", sd_cfg.get("default_duration", 5)))
+    batch_id = config.get("_batch_id", "")
+    prefix = f"{batch_id}_shot_{sid}" if batch_id else f"shot_{sid}"
+    output_dir = Path(config.get("output", {}).get("shots_dir", "output/shots"))
+
+    # 素材收集
+    assets = state.get("assets") or []
+    first_frame = state.get("first_frame", "")
+    last_frame = state.get("last_frame", "")
+    img_assets = [a.get("path") for a in assets
+                  if a.get("type") == "image" and a.get("path")]
+    vid_assets = [a.get("path") for a in assets
+                  if a.get("type") == "video" and a.get("path")]
+    first_img = first_frame or (img_assets[0] if img_assets else "")
+    extra_imgs = [p for p in img_assets if p and p != first_img]
+
+    seedream_api = VolcanoSeedream(vc)
+    seedance_api = VolcanoSeedance(vc)
+
+    try:
+        first_frame_url = ""
+        # 先跑 Seedream（如有）
+        if seedream_nodes:
+            model, size, extra = _volcano_seedream_params(wf, config, sid)
+            images = [u for u in ([first_img] + extra_imgs) if u] or None
+            sr_result = await seedream_api.generate(
+                prompt=optimized,
+                model=model, size=size,
+                seed=extra["seed"], watermark=extra["watermark"],
+                image=images,
+            )
+            first_frame_url = (sr_result.get("data") or [{}])[0].get("url", "")
+            log.info(f"镜号 {sid}: Seedream 完成，first_frame_url={'已获取' if first_frame_url else '空'}")
+
+        # 单 Seedream + 无 Seedance → 同步出图，直接下载
+        if seedream_nodes and not seedance_nodes:
+            dest = output_dir / f"{prefix}.png"
+            local = await _download_image_result(vc, sr_result, dest)
+            log.info(Msg.LG_WAIT_OK.format(path=str(local)))
+            return {**state, "video_path": str(local), "status": "done",
+                    "_provider": "volcano"}
+
+        # Seedance（链式 / 单 Seedance）
+        if seedance_nodes:
+            model, resolution, aspect_ratio, extra = _volcano_seedance_params(wf, config, duration)
+            sd_prompt = motion if is_chain else optimized
+            task_id = await seedance_api.submit(
+                prompt=sd_prompt,
+                model=model, resolution=resolution, aspect_ratio=aspect_ratio,
+                duration=extra["duration"],
+                generate_audio=extra["generate_audio"],
+                seed=extra["seed"],
+                first_frame=first_frame_url or first_frame or "",
+                last_frame=last_frame or "",
+                ref_images=[u for u in extra_imgs if u] or None,
+                ref_videos=[u for u in vid_assets if u] or None,
+                filename_prefix=prefix,
+            )
+            return {**state, "task_id": task_id, "status": "submitted",
+                    "_provider": "volcano"}
+
+        return {**state, "status": "failed", "error_message": "工作流无 Jimeng 节点"}
+    except Exception as e:
+        log.error(f"镜号 {sid} 火山提交失败: {e}")
+        return {**state, "status": "failed", "error_message": f"火山提交失败: {e}"}
+
+
+async def _wait_volcano(state: dict) -> dict:
+    """轮询 Seedance 任务 + 下载视频"""
+    sid = state.get("id", "?")
+    config = state.get("config", {})
+    ctx = state.get("_ctx") or {}
+    vc: VolcanoClient = ctx.get("volcano_client")
+    task_id = state.get("task_id", "")
+    if not vc or not task_id:
+        return {**state, "status": "failed", "error_message": "无 VolcanoClient 或 task_id"}
+
+    batch_id = config.get("_batch_id", "")
+    prefix = f"{batch_id}_shot_{sid}" if batch_id else f"shot_{sid}"
+    output_dir = Path(config.get("output", {}).get("shots_dir", "output/shots"))
+
+    try:
+        seedance_api = VolcanoSeedance(vc)
+        result = await seedance_api.wait_for_completion(task_id, max_wait=600)
+        video_url = (result.get("content") or {}).get("video_url", "")
+        if not video_url:
+            return {**state, "status": "failed", "error_message": "Seedance 返回无 video_url"}
+        local = output_dir / f"{prefix}.mp4"
+        await vc.download(video_url, local)
+        log.info(Msg.LG_WAIT_OK.format(path=str(local)))
+        return {**state, "video_path": str(local), "status": "done"}
+    except Exception as e:
+        log.error(f"镜号 {sid} Seedance 等待失败: {e}")
         return {**state, "status": "failed", "error_message": str(e)}
 
 
@@ -401,7 +624,8 @@ def _strip(state: dict) -> dict:
 async def generate_shot(shot: dict, config: dict, registry: TemplateRegistry = None,
                         client: ComfyUIClient = None, ctx: dict = None) -> dict:
     """单个镜头的完整生成链路（等价原 8 节点图：analyze→select→optimize→validate→submit→wait→review）"""
-    ctx = ctx or {"registry": registry, "client": client}
+    if ctx is None:
+        ctx = {"registry": registry, "client": client}
     state = {
         "id": shot.get("id", ""),
         "shot_id": shot.get("id", ""),
@@ -474,9 +698,13 @@ async def generate_shot(shot: dict, config: dict, registry: TemplateRegistry = N
 
 
 async def run_batch(shots: list[dict], config: dict, registry: TemplateRegistry,
-                    client: ComfyUIClient = None, max_concurrency: int = 2) -> list[dict]:
-    """批量并发生成镜头，asyncio.Semaphore 限制并发数"""
-    ctx = {"registry": registry, "client": client}
+                    client: ComfyUIClient = None, max_concurrency: int = 2,
+                    volcano_client: VolcanoClient = None) -> list[dict]:
+    """批量并发生成镜头，asyncio.Semaphore 限制并发数
+
+    volcano_client: 可选，提供后 Jimeng 工作流走火山方舟直连（无需 ComfyUI）
+    """
+    ctx = {"registry": registry, "client": client, "volcano_client": volcano_client}
     log.info(Msg.LG_BATCH_START.format(count=len(shots)))
     sem = asyncio.Semaphore(max_concurrency)
 

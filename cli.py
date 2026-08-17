@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from pipeline.input_reader import read_shots
 from pipeline.generator import run_batch, set_current_batch_id
 from pipeline.providers.comfyui import ComfyUIClient
+from pipeline.providers.volcano import VolcanoClient
 from pipeline.registry import TemplateRegistry
 from pipeline import merge as merge_pipeline
 
@@ -126,13 +127,24 @@ async def async_main(args):
             shot_results = existing
         else:
             log.info(f"需要重试: {[s['id'] for s in retry_shots]}")
+            jimeng_key = config.get("api", {}).get("jimeng", {}).get("api_key", "") or ""
             async with ComfyUIClient(
                 host=config["comfyui"]["host"],
                 timeout=config["comfyui"].get("timeout", 600),
                 poll_interval=config["comfyui"].get("poll_interval", 5),
             ) as client:
-                new_results = await run_batch(retry_shots, config, registry, client,
-                                              max_concurrency=config.get("agent", {}).get("concurrency", 2))
+                if jimeng_key and not jimeng_key.startswith("your-"):
+                    async with VolcanoClient(api_key=jimeng_key) as vc:
+                        new_results = await run_batch(
+                            retry_shots, config, registry, client,
+                            volcano_client=vc,
+                            max_concurrency=config.get("agent", {}).get("concurrency", 2),
+                        )
+                else:
+                    new_results = await run_batch(
+                        retry_shots, config, registry, client,
+                        max_concurrency=config.get("agent", {}).get("concurrency", 2),
+                    )
             # 合并已有 + 新结果
             shot_results = [r for r in existing if r.get("status") == "done"] + new_results
             log.info(f"合并后: {len(shot_results)} 个镜头")
@@ -143,13 +155,24 @@ async def async_main(args):
         shot_results = load_existing_results(batch_id, config)
         log.info(Msg.MAIN_RESTORE.format(count=len(shot_results)))
     else:
+        jimeng_key = config.get("api", {}).get("jimeng", {}).get("api_key", "") or ""
         async with ComfyUIClient(
             host=config["comfyui"]["host"],
             timeout=config["comfyui"].get("timeout", 600),
             poll_interval=config["comfyui"].get("poll_interval", 5),
         ) as client:
-            shot_results = await run_batch(shots, config, registry, client,
-                                           max_concurrency=config.get("agent", {}).get("concurrency", 2))
+            if jimeng_key and not jimeng_key.startswith("your-"):
+                async with VolcanoClient(api_key=jimeng_key) as vc:
+                    shot_results = await run_batch(
+                        shots, config, registry, client,
+                        volcano_client=vc,
+                        max_concurrency=config.get("agent", {}).get("concurrency", 2),
+                    )
+            else:
+                shot_results = await run_batch(
+                    shots, config, registry, client,
+                    max_concurrency=config.get("agent", {}).get("concurrency", 2),
+                )
 
     # ======== 合并 ========
     if not args.skip_merge and shot_results:
@@ -167,7 +190,14 @@ async def async_main(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="视频批量生产流水线")
+    # ── 废弃警告：每次跑 CLI 都明确提示 ──
+    print("=" * 64)
+    print("⚠️  CLI 入口已废弃，请改用 Web 管理面板：")
+    print("    uvicorn app:app --reload   →   http://127.0.0.1:8000")
+    print("    本脚本保留仅作历史备查，逻辑随时可恢复。")
+    print("=" * 64)
+
+    parser = argparse.ArgumentParser(description="视频批量生产流水线 [DEPRECATED]")
     parser.add_argument("--input", default="input/shots.csv",
                         help="镜头脚本 xlsx/csv 路径")
     parser.add_argument("--config", default="config.yaml",
