@@ -4,6 +4,20 @@ comfyui:
   poll_interval: 5
   default_timeout: 300
   default_poll_interval: 3
+# 火山方舟（即梦/Jimeng）API key — 模板 {{api.jimeng.api_key}} / {{api.jimeng.key_name}} 引用
+# Web 设置页 UI 不暴露此字段，需手动编辑 config.yaml 或设 JIMENG_API_KEY 环境变量
+api:
+  jimeng:
+    api_key: your-jimeng-api-key
+    key_name: Custom
+seedream:
+  model_version: doubao-seedream-4.0
+  size: 2848x1600 (16:9)
+  width: 1280
+  height: 720
+  max_images: 1
+  watermark: false
+  default_seed: 0
 seedance:
   model_version: doubao-seedance-2-0-fast
   resolution: 720p
@@ -29,12 +43,24 @@ ffmpeg:
 tts:
   voice: zh-CN-XiaoxiaoNeural
   rate: +0%
+task:
+  batch_prefix: batch
+  # 输出目录按分类组织：output/{分类}/{项目名}/
+  # {project} = 用户指定的项目名（--name），或时间戳（batch_YYYYMMDD_HHMMSS）
+  output_structure:
+    shots:  output/shots/{project}
+    audio:  output/audio/{project}
+    subs:   output/subs/{project}
+    merged: output/merged/{project}
+    final:  output/final/{project}
+    logs:   output/logs/{project}
+
 output:
-  shots_dir: output/shots
-  audio_dir: output/audio
-  subs_dir: output/subs
-  merged_dir: output/merged
-  final_dir: output/final
+  shots_dir:  output/shots/{project}
+  audio_dir:  output/audio/{project}
+  subs_dir:   output/subs/{project}
+  merged_dir: output/merged/{project}
+  final_dir:  output/final/{project}
 merge:
   transition: fade
   transition_duration: 0.5

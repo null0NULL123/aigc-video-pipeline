@@ -32,16 +32,32 @@ def load_config(path: str = "config.yaml") -> dict:
 
 
 def ensure_dirs(config: dict):
-    batch_id = config.get("_batch_id", "default")
+    """根据 task.output_structure 解析输出目录并 mkdir。
+
+    支持占位符：
+      - {project} = batch_id（用户 --name 或自动时间戳）
+      - {batch_id} = 同上（旧版兼容）
+    """
+    project = config.get("_batch_id", "default")
     task_cfg = config.get("task", {})
     structure = task_cfg.get("output_structure", {})
     config.setdefault("output", {})
     if structure:
-        config["output"]["shots_dir"] = structure.get("shots", "output/{batch_id}/shots").format(batch_id=batch_id)
-        config["output"]["audio_dir"] = structure.get("audio", "output/{batch_id}/audio").format(batch_id=batch_id)
-        config["output"]["subs_dir"] = structure.get("subs", "output/{batch_id}/subs").format(batch_id=batch_id)
-        config["output"]["final_dir"] = structure.get("final", "output/{batch_id}/final").format(batch_id=batch_id)
-    for key in ("shots_dir", "audio_dir", "subs_dir", "merged_dir", "final_dir"):
+        # 6 个分类目录，{project} 优先（用户原话：项目名），保留 {batch_id} 兼容旧 config
+        placeholders = {"project": project, "batch_id": project}
+        for cat, key in [
+            ("shots", "shots_dir"),
+            ("audio", "audio_dir"),
+            ("subs", "subs_dir"),
+            ("merged", "merged_dir"),
+            ("final", "final_dir"),
+            ("logs", "logs_dir"),
+        ]:
+            tpl = structure.get(cat)
+            if tpl:
+                config["output"][key] = tpl.format(**placeholders)
+    # mkdir 所有解析出的目录（含 logs_dir，新加）
+    for key in ("shots_dir", "audio_dir", "subs_dir", "merged_dir", "final_dir", "logs_dir"):
         path = config.get("output", {}).get(key, "")
         if path:
             Path(path).mkdir(parents=True, exist_ok=True)
@@ -218,4 +234,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main()
